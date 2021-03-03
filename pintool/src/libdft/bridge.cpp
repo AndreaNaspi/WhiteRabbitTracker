@@ -38,7 +38,7 @@ void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size) {
 
 void addTaintMemory(ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName) {
 	ASSERT(sizeof(ADDRINT) == sizeof(UINT32), "64-bit mode not supported yet");
-	std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
+	// std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
 	for (UINT32 i = 0; i < size; ++i) {
 		tag_t t = tag;
 		if (!reset) t |= tagmap_getb(addr + i);
