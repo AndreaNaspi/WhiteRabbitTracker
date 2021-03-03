@@ -29,7 +29,7 @@ You should now be able to compile TracerWithTaintingCapabilities. Once compilati
 To run an executable under TracerWithTaintingCapabilities use:
 
 ```
-C:\Pin311\pin.exe -t simpleProfilerAPI32.dll [options] -- <file.exe>
+C:\Pin315\pin.exe -t simpleProfilerAPI32.dll [options] -- <file.exe>
 ```
 
 TracerWithTaintingCapabilities supports the following command-line options:
