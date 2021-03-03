@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\libdft\bridge.cpp">
+      <Filter>libdft</Filter>
+    </ClCompile>
+    <ClCompile Include="src\libdft\libdft_api.cpp">
+      <Filter>libdft</Filter>
+    </ClCompile>
+    <ClCompile Include="src\libdft\libdft_core.cpp">
+      <Filter>libdft</Filter>
+    </ClCompile>
+    <ClCompile Include="src\libdft\tag_traits.cpp">
+      <Filter>libdft</Filter>
+    </ClCompile>
+    <ClCompile Include="src\libdft\tagmap.cpp">
+      <Filter>libdft</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\ModuleInfo.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ProcessInfo.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LoggingInfo.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\specialInstructions.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\exceptionHandler.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\functions.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\state.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\itree.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source files">
+      <UniqueIdentifier>{e351ae10-7f4b-438c-b9dd-5ac8e4202289}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header files">
+      <UniqueIdentifier>{a5f1e442-61fc-4dcf-8628-560252b6df05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libdft">
+      <UniqueIdentifier>{25a80272-668f-4457-afcf-1f3963deb8dd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\libdft\array.hpp">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\branch_pred.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\libdft_api.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\libdft_config.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\libdft_core.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\tag_traits.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\tagmap.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\tagmap_custom.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\libdft\bridge.h">
+      <Filter>libdft</Filter>
+    </ClInclude>
+    <ClInclude Include="src\winheaders.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\exceptionHandler.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\functions.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\LoggingInfo.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ModuleInfo.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ProcessInfo.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\specialInstructions.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\state.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\itree.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\main.h" />
+  </ItemGroup>
+</Project>
