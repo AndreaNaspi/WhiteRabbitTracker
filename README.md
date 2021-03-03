@@ -26,13 +26,13 @@ You should now be able to compile TracerWithTaintingCapabilities. Once compilati
 
 ### Quick start
 
-To run an executable under BluePill use:
+To run an executable under TracerWithTaintingCapabilities use:
 
 ```
 C:\Pin311\pin.exe -t simpleProfilerAPI32.dll [options] -- <file.exe>
 ```
 
-BluePill supports the following command-line options:
+TracerWithTaintingCapabilities supports the following command-line options:
 
 Option | Meaning
 --- | --- 
@@ -44,7 +44,7 @@ For instance, to run an evasive program named `sample.exe` in a sandbox-like aut
 C:\Pin311\pin.exe -t simpleProfilerAPI32.dll -- sample.exe
 ```
 
-BluePill will create a file named `profile.tag` under Pin's folder `C:\Pin315` that logs all the traced APIs.
+TracerWithTaintingCapabilities will create a file named `profile.tag` under Pin's folder `C:\Pin315` that logs all the traced APIs.
 
 ### Authors
 * Andrea Naspi ([@andreanaspi](https://github.com/AndreaNaspi)) - main developer
