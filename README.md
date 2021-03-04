@@ -41,7 +41,7 @@ Option | Meaning
 For instance, to run an evasive program named `sample.exe` in a sandbox-like automatic mode try:
 
 ```
-C:\Pin311\pin.exe -t simpleProfilerAPI32.dll -- sample.exe
+C:\Pin315\pin.exe -t simpleProfilerAPI32.dll -- sample.exe
 ```
 
 TracerWithTaintingCapabilities will create a file named `profile.tag` under Pin's folder `C:\Pin315` that logs all the traced APIs.
