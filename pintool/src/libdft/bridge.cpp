@@ -46,8 +46,12 @@ void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size) {
 }
 
 void addTaintMemory(ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName) {
-	// check if the pointer is 0 or NULL (check address)
+	// Check if the program is 64-bit
 	ASSERT(sizeof(ADDRINT) == sizeof(UINT32), "64-bit mode not supported yet");
+	// Check if the pointer is 0 or NULL (check address)
+	if (addr == 0 || addr == NULL)
+		return;
+	// Taint the memory addresses
 	// std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
 	for (UINT32 i = 0; i < size; ++i) {
 		tag_t t = tag;
@@ -81,7 +85,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 			goto END;
 		// Get the tainted instruction in a buffer (using INS_Disassemble)
 		char buf[512];
-		sprintf(buf, "Tainted instruction: 0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
+		sprintf(buf, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
 		// Open the log file (specified in OnThreadStart, see main.cpp) and log the tainted instruction
 		FILE *logFile = fopen(TTINFO(logname), "a"); 
 		if (logFile) {
