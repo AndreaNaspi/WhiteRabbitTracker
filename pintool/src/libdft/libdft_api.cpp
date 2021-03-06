@@ -561,6 +561,12 @@ int libdft_init_data_only() {
 	/* initialize the ins descriptors */
 	(void)memset(ins_desc, 0, sizeof(ins_desc));
 
+	/* register trace_ins() to be called for every trace */
+	TRACE_AddInstrumentFunction(trace_inspect, (VOID *)0);
+
+	/* ugly hack for bypassing unaligned address checks */
+	PIN_AddInternalExceptionHandler(fix_eflags, NULL);
+
 	return 0;
 }
 

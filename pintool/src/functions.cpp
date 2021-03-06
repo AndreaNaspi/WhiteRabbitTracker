@@ -59,7 +59,7 @@ namespace Functions {
 
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
 
-		// Define instruction hooking for taint analysis (taint sinks) - control transfer instruction (call, jmp, ret????)
+		// Define instruction hooking for taint analysis (taint sinks) - control transfer instruction (call, jmp, ret)
 		/**
 		// Instrument near call
 		(void)ins_set_post(&ins_desc[XED_ICLASS_CALL_NEAR], dta_instrument_jmp_call);
@@ -166,6 +166,14 @@ namespace Functions {
 
 /* API HOOKS (taint sources) begin here */
 
+/*
+inserire in ogni API hook 
+itreenode_t* node = itree_search(intervalTree, *ESP);
+check if NULL, do taint
+IARG_REG_VALUE,
+REG_STACK_PTR,
+*/
+
 VOID taintRegisterEax(CONTEXT* ctx) {
 	thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); // thread_ctx_ptr or REG_EAX???
 	tag_t reset_tags[] = R32TAG(REG32_INDX(REG_EAX));
@@ -192,12 +200,12 @@ VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToByte
 VOID EnumProcessesExit(ADDRINT eax) {
 	// taint source: API return value
 	State::globalState* gs = State::getGlobalState();
-	//addTaintMemory(*gs->pointerToLpidProcess, *gs->pointerToBytesLpidProcess, TAINT_COLOR_1, true, "EnumProcesses");  // big taint big slow down
+	//addTaintMemory(*gs->pointerToLpidProcess, *gs->pointerToBytesLpidProcess, TAINT_COLOR_1, true, "EnumProcesses");  // big taint big slow down??
 }
 
 VOID Process32FirstNextEntry(ADDRINT* pointerToProcessInformations) {
-	// taint source: API processes array+
-	addTaintMemory(*pointerToProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next"); // lot of taints??
+	// taint source: API processes array
+	addTaintMemory(*pointerToProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next"); // lot of taints?? do it on exit
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {

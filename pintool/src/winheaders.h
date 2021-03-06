@@ -7,6 +7,7 @@ namespace W {
 	#include "winnt.h"
 	#include "Intsafe.h"
 	#include "OAIdl.h" // MEH for W::VARIANT
+	#include "shlwapi.h"
 }
 
 // constants that depend on Windows version

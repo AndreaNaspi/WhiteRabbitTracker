@@ -105,7 +105,7 @@ template<>
 struct tag_traits<std::bitset<TAG_BITSET_SIZE> >
 {
 	typedef std::bitset<TAG_BITSET_SIZE> type; // DCD typedef typename vs C++03
-	typedef uint8_t inner_type; // ???
+	typedef uint8_t inner_type; 
 	static const bool is_container = false;
 	static const std::bitset<TAG_BITSET_SIZE> cleared_val;
 	static const std::bitset<TAG_BITSET_SIZE> set_val;

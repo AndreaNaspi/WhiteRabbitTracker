@@ -12,6 +12,15 @@
 #define R32TAG(RIDX) \
     {RTAG[(RIDX)][0], RTAG[(RIDX)][1], RTAG[(RIDX)][2], RTAG[(RIDX)][3]}
 
+/*
+#define TAINT_TAG_REG(ctx, taint_gpr, t0, t1, t2, t3) do { \
+if (!Config::getInstance()->TAINT_MODE) break; \
+tag_t _tags[4] = {t0, t1, t2, t3}; \
+thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); \
+addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
+} while (0)
+TAINT_TAG_REG(ctx, GPR_EAX, 0, 0, 0, 0);
+*/
 void addTaintRegister(thread_ctx_t *thread_ctx, int gpr, tag_t tags[], bool reset) {
 	tag_t src_tag[] = R32TAG(gpr);
 	for (UINT32 i = 0; i < 4; ++i) {
@@ -37,6 +46,7 @@ void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size) {
 }
 
 void addTaintMemory(ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName) {
+	// check if the pointer is 0 or NULL (check address)
 	ASSERT(sizeof(ADDRINT) == sizeof(UINT32), "64-bit mode not supported yet");
 	// std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
 	for (UINT32 i = 0; i < size; ++i) {
@@ -73,15 +83,16 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 		char buf[512];
 		sprintf(buf, "Tainted instruction: 0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
 		// Open the log file (specified in OnThreadStart, see main.cpp) and log the tainted instruction
-		FILE *logFile = fopen("tainted-data.log", "a"); // no TTINFO(logname)??
+		FILE *logFile = fopen(TTINFO(logname), "a"); 
 		if (logFile) {
 			fprintf(logFile, "%s", buf);
 			fclose(logFile);
 		}
 	}
-#endif
 END:
-	// Remove the taint from the current thread context??
+#else
+}
+#endif
 	TTINFO(tainted) = 0;
 }
 

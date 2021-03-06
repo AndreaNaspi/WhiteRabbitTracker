@@ -1,26 +1,8 @@
 /* ================================================================== */
 /* Imports                                                            */
 /* ================================================================== */
-#include <iostream>
-#include <fstream>
+#pragma once
 #include "main.h"
-#include "pin.H"
-#include "state.h"
-#include "ProcessInfo.h"
-#include "ModuleInfo.h"
-#include "LoggingInfo.h"
-#include "SpecialInstructions.h"
-#include "functions.h"
-using std::cerr;
-using std::ofstream;
-using std::ios;
-using std::string;
-using std::endl;
-// libdft
-#include "libdft/libdft_config.h"
-#include "libdft/bridge.h"
-#include "libdft/libdft_api.h"
-#include "libdft/tagmap.h"
 
 /* ================================================================== */
 /* Global variables                                                   */ 
@@ -40,29 +22,12 @@ LoggingInfo logInfo;
 // Object that contains useful functions for special instructions instrumentation (cpuid, rdtsc)
 SpecialInstructionsHandler* specialInstructionsHandlerInfo;
 
-// Shellcode enum 
-typedef enum {
-	SHELLC_DO_NOT_FOLLOW = 0,    // trace only the main target module
-	SHELLC_FOLLOW_FIRST = 1,     // follow only the first shellcode called from the main module
-	SHELLC_FOLLOW_RECURSIVE = 2, // follow also the shellcodes called recursively from the the original shellcode
-	SHELLC_OPTIONS_COUNT
-} t_shellc_options;
-// Variable to define the actions to perform with shellcode (default value: follow recursive)
-t_shellc_options m_FollowShellcode = SHELLC_FOLLOW_RECURSIVE;
-
 /* ================================================================== */
 /* Knobs definitions                                                  */
 /* ================================================================== */
 
 // Define knob for output file (used by "-o" option, default value: profile.tag)
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.tag", "specify output file name");
-// Define knob for shellcode analysis (used by "-f" option)
-KNOB<int> KnobFollowShellcode(KNOB_MODE_WRITEONCE, "pintool",
-	"f", "", "Trace calls executed from shellcodes loaded in the memory:\n"
-	"\t0 - trace only the main target module\n"
-	"\t1 - follow only the first shellcode called from the main module \n"
-	"\t2 - follow also the shellcodes called recursively from the the original shellcode\n"
-);
 
 /* ===================================================================== */
 /* Function called for every loaded module                               */
@@ -164,7 +129,7 @@ VOID _SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo) {
 	}
 	// [SHELLCODE API CALL TRACING]
 	// Trace calls from witin the last shellcode that was called from the traced module
-	if (m_FollowShellcode && !IMG_Valid(callerModule)) {
+	if (!IMG_Valid(callerModule)) {
 		const ADDRINT callerPage = pageFrom;
 		// If the caller page is a known address and correspond to the last possible shellcode, log it
 		if (callerPage != UNKNOWN_ADDR && callerPage == lastShellc) {
@@ -176,7 +141,7 @@ VOID _SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo) {
 				logInfo.logCall(callerPage, addrFrom, false, dll_name, func);
 			}
 			// Otherwise, set the variable lastShellc if the mode is recursive (shellcode inside shellcode)
-			else if (pageFrom != pageTo && m_FollowShellcode == SHELLC_FOLLOW_RECURSIVE) {
+			else if (pageFrom != pageTo) {
 				lastShellc = pageTo;
 			}
 		}
@@ -269,8 +234,7 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	TTINFO(os_tid) = PIN_GetTid();
 	// Setup log path for the specific thread ID
 	char tmp[32];
-	// sprintf(tmp, "tainted-%u.log", TTINFO(os_tid));
-	sprintf(tmp, "tainted-data.log");
+	sprintf(tmp, "tainted-%u.log", TTINFO(os_tid));
 	TTINFO(logname) = strdup(tmp);
 	// Undefine thread informations (used later in bridge.cpp for libdft tainting)
 	#undef TTINFO
@@ -311,7 +275,13 @@ int main(int argc, char * argv[]) {
 	logInfo.init(KnobOutputFile.Value());
 
 	// Remove old file related to taint analysis
-	remove("tainted-data.log");
+	W::WIN32_FIND_DATA ffd; 
+	W::HANDLE hFind = FindFirstFile(".\\*.log", &ffd);
+	do {
+		std::string fileName = ffd.cFileName;
+		if (fileName.rfind("tainted-", 0) == 0)
+			remove(fileName.c_str());
+	} while (FindNextFile(hFind, &ffd) != 0);
 
 	// Get module name from command line argument
 	std::string app_name = "";
@@ -326,13 +296,6 @@ int main(int argc, char * argv[]) {
 			break;
 		}
 	}
-
-	// Get shellcode analysis strategy from knobs (if the value is out of bound, set it to follow recursive)
-	int followShellcodeValue = KnobFollowShellcode.Value();
-	if (followShellcodeValue >= SHELLC_OPTIONS_COUNT) {
-		followShellcodeValue = 2;
-	}
-	m_FollowShellcode = (t_shellc_options)followShellcodeValue;
 
 	// Initialize ProcessInfo object 
 	pInfo.init(app_name);
@@ -360,7 +323,7 @@ int main(int argc, char * argv[]) {
 	PIN_AddThreadFiniFunction(OnThreadFini, NULL);
 
 	// Initialize libdft engine
-	if (libdft_init()) {
+	if (libdft_init_data_only()) {
 		std::cerr << "Error during libdft initialization!" << std::endl;
 		return EXIT_FAILURE;
 	}

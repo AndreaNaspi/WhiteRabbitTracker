@@ -1,6 +1,23 @@
 #pragma once
-
+#include <iostream>
+#include <fstream>
 #include "pin.H"
+#include "state.h"
+#include "ProcessInfo.h"
+#include "ModuleInfo.h"
+#include "LoggingInfo.h"
+#include "SpecialInstructions.h"
+#include "functions.h"
+using std::cerr;
+using std::ofstream;
+using std::ios;
+using std::string;
+using std::endl;
+// libdft
+#include "libdft/libdft_config.h"
+#include "libdft/bridge.h"
+#include "libdft/libdft_api.h"
+#include "libdft/tagmap.h"
 
 /* ===================================================================== */
 /* Function called for every loaded module                               */
