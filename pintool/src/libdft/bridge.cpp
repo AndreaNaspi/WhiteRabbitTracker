@@ -12,15 +12,6 @@
 #define R32TAG(RIDX) \
     {RTAG[(RIDX)][0], RTAG[(RIDX)][1], RTAG[(RIDX)][2], RTAG[(RIDX)][3]}
 
-/*
-#define TAINT_TAG_REG(ctx, taint_gpr, t0, t1, t2, t3) do { \
-if (!Config::getInstance()->TAINT_MODE) break; \
-tag_t _tags[4] = {t0, t1, t2, t3}; \
-thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); \
-addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
-} while (0)
-TAINT_TAG_REG(ctx, GPR_EAX, 0, 0, 0, 0);
-*/
 void addTaintRegister(thread_ctx_t *thread_ctx, int gpr, tag_t tags[], bool reset) {
 	tag_t src_tag[] = R32TAG(gpr);
 	for (UINT32 i = 0; i < 4; ++i) {
@@ -97,6 +88,7 @@ END:
 #else
 }
 #endif
+	// Clear text context from the taint
 	TTINFO(tainted) = 0;
 }
 

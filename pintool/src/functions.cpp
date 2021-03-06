@@ -23,6 +23,15 @@
 #define TAINT_COLOR_7 0x07
 #define TAINT_COLOR_8 0x08
 
+/* ============================================================================= */
+/* Define function to taint a register using thread_ctx_ptr and GPR from libdft  */
+/* ============================================================================ */
+#define TAINT_TAG_REG(ctx, taint_gpr, t0, t1, t2, t3) do { \
+tag_t _tags[4] = {t0, t1, t2, t3}; \
+thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); \
+addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
+} while (0)
+
 /* ===================================================================== */
 /* Instruction description for instruction tainting                      */
 /* ===================================================================== */
@@ -53,8 +62,6 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("GlobalMemoryStatusEx", GLOBALMEMORYSTATUS_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetSystemInfo", GETSYSTEMINFO_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
-		fMap.insert(std::pair<std::string, int>("GetUserName", GETUSERNAME_INDEX));
-		fMap.insert(std::pair<std::string, int>("GetUserNameA", GETUSERNAME_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
 
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
@@ -152,7 +159,6 @@ namespace Functions {
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetCursorPosEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_END);
-					// screen resolution (GetDesktopWindow, GetWindowRect, GetSystemMetrics), GetUserName, GetComputerName, ....
 					default:
 						break;
 
@@ -169,15 +175,13 @@ namespace Functions {
 /*
 inserire in ogni API hook 
 itreenode_t* node = itree_search(intervalTree, *ESP);
-check if NULL, do taint
+check if not NULL, do taint
 IARG_REG_VALUE,
 REG_STACK_PTR,
 */
 
 VOID taintRegisterEax(CONTEXT* ctx) {
-	thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); // thread_ctx_ptr or REG_EAX???
-	tag_t reset_tags[] = R32TAG(REG32_INDX(REG_EAX));
-	addTaintRegister(thread_ctx, REG32_INDX(REG_EAX), reset_tags, true); // double tags?? gpr???
+	TAINT_TAG_REG(ctx, GPR_EAX, 0, 0, 0, 0);
 }
 
 VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax) {
