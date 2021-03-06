@@ -45,6 +45,7 @@ C:\Pin315\pin.exe -t simpleProfilerAPI32.dll -- sample.exe
 ```
 
 TracerWithTaintingCapabilities will create a file named `profile.tag` under Pin's folder `C:\Pin315` that logs all the traced APIs.
+In the same folder, it will also create some files named `tainted-TID.log` (where TID is replaced with the identifier of the current thread) that contains informations about the encounter of tainted instructions in the program code.
 
 ### Authors
 * Andrea Naspi ([@andreanaspi](https://github.com/AndreaNaspi)) - main developer
