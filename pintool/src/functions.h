@@ -47,6 +47,7 @@ VOID Process32FirstNextEntry(ADDRINT* processInformations);
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer);
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo);
+VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);

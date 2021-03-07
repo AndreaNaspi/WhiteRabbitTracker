@@ -1,3 +1,4 @@
+#pragma once
 #include "functions.h"
 #include "types.h"
 #include "process.h"
@@ -137,6 +138,7 @@ namespace Functions {
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
 							IARG_END);
+						break;
 					// API GetDiskFreeSpace
 					case GETDISKFREESPACE_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve disk informations)
@@ -145,18 +147,26 @@ namespace Functions {
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 2,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 3,
 							IARG_END);
+						break;
 					// API GlobalMemoryStatus
 					case GLOBALMEMORYSTATUS_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve memory informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GlobalMemoryStatusEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_END);
+						break;
 					// API GetSystemInfo
 					case GETSYSTEMINFO_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve system informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetSystemInfoEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetSystemInfoExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
 					// API GetTickCount
 					case GETTICKCOUNT_INDEX:
 						// Add hooking with IPOINT_AFTER to retrieve the API output
@@ -164,17 +174,19 @@ namespace Functions {
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_EAX,
 							IARG_END);
+						break;
 					// API GetCursorPos
 					case GETCURSORPOS_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve pointer informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetCursorPosEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_END);
-						// Add hooking with IPOINT_AFTER to retrieve taint the memory on output
+						// Add hooking with IPOINT_AFTER to taint the memory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetCursorPosExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
+						break;
 					default:
 						break;
 
@@ -205,6 +217,8 @@ VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 }
 
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray) {
+	//W::LPDWORD test = (W::LPDWORD) *pointerToBytesProcessesArray;
+	//ADDRINT value = *test;
 	// store the lpProcessesArray and bytes variable into global variables
 	State::globalState* gs = State::getGlobalState();
 	gs->pointerToLpidProcess = pointerToProcessesArray;
@@ -235,9 +249,18 @@ VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer) {
 }
 
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo) {
-	// taint source: system informations
-	addTaintMemory(*pointerToLpSystemInfo, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
+	// store system informations into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->systemInfoInformations = pointerToLpSystemInfo;
 }
+
+VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* gs = State::getApiOutputs();
+	addTaintMemory(*gs->systemInfoInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
+}
+
 
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax) {
 	// taint source: API return value

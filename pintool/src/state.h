@@ -41,6 +41,7 @@ namespace State {
 	/* ===================================================================== */
 	struct apiOutputs {
 		ADDRINT* cursorPointerInformations;
+		ADDRINT* systemInfoInformations;
 	};
 
 	/* ===================================================================== */
