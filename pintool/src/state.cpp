@@ -4,6 +4,7 @@
 /* Singleton structure object to access global objects                   */
 /* ===================================================================== */
 State::globalState _globalState;
+State::apiOutputs  _apiOutputs;
 
 namespace State {
 	/* ===================================================================== */
@@ -12,6 +13,7 @@ namespace State {
 	void init() {
 		// Initialize memory portion
 		memset(&_globalState, 0, sizeof(globalState));
+		memset(&_apiOutputs, 0, sizeof(apiOutputs));
 
 		// Useful time informations (magic numbers)
 		_globalState._timeInfo.tick = 3478921;
@@ -23,5 +25,12 @@ namespace State {
 	/* ===================================================================== */
 	globalState* getGlobalState() {
 		return &_globalState;
+	}
+
+	/* ===================================================================== */
+	/* Function to access the structure that stores API outputs              */
+	/* ===================================================================== */
+	apiOutputs* getApiOutputs() {
+		return &_apiOutputs;
 	}
 }

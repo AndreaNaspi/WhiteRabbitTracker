@@ -37,7 +37,7 @@ addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
 /* ============================================================================= */
 #define CHECK_ESP_RETURN_ADDRESS(ESP) do { \
 State::globalState* gs = State::getGlobalState(); \
-itreenode_t* node = itree_search(gs->dllRangeITree, *ESP); \
+itreenode_t* node = itree_search(gs->dllRangeITree, ESP); \
 if(node != NULL) return; \
 } while (0)
 
@@ -103,18 +103,20 @@ namespace Functions {
 				switch (index) {
 					// API IsDebuggerPresent
 					case ISDEBUGGERPRESENT_INDEX:
-						// Add hooking with IPOINT_AFTER to retrieve the API output
+						// Add hooking with IPOINT_AFTER to retrieve taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IsDebuggerPresentExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_EAX,
+							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
 					// API CheckRemoteDebuggerPresent 
 					case CHECKREMOTEDEBUGGERPRESENT_INDEX:
-						// Add hooking with IPOINT_AFTER to retrieve the API output
+						// Add hooking with IPOINT_AFTER to retrieve taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)CheckRemoteDebuggerPresentExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_EAX,
+							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
 					// API EnumProcesses and K32Enumprocesses
@@ -168,6 +170,11 @@ namespace Functions {
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetCursorPosEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_END);
+						// Add hooking with IPOINT_AFTER to retrieve taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetCursorPosExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
 					default:
 						break;
 
@@ -185,13 +192,15 @@ VOID taintRegisterEax(CONTEXT* ctx) {
 	TAINT_TAG_REG(ctx, GPR_EAX, 0, 0, 0, 0);
 }
 
-VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax) {
+VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
 	taintRegisterEax(ctx);
 }
 
-VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax) {
+VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
 	taintRegisterEax(ctx);
 }
 
@@ -205,7 +214,7 @@ VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToByte
 VOID EnumProcessesExit(ADDRINT eax) {
 	// taint source: API return value
 	State::globalState* gs = State::getGlobalState();
-	//addTaintMemory(*gs->pointerToLpidProcess, *gs->pointerToBytesLpidProcess, TAINT_COLOR_1, true, "EnumProcesses");  // big taint big slow down??
+	//addTaintMemory(*gs->pointerToLpidProcess, *gs->pointerToBytesLpidProcess, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
 VOID Process32FirstNextEntry(ADDRINT* pointerToProcessInformations) {
@@ -236,8 +245,16 @@ VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax) {
 }
 
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint) {
-	// taint source: mouse pointer informations
-	addTaintMemory(*pointerToLpPoint, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+	// store mouse pointer informations into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->cursorPointerInformations = pointerToLpPoint;
+}
+
+VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* gs = State::getApiOutputs();
+	addTaintMemory(*gs->cursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
 

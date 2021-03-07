@@ -39,8 +39,8 @@ namespace Functions {
 /* ===================================================================== */
 /* API HOOKS (taint sources)                                             */
 /* ===================================================================== */
-VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax);
-VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax);
+VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
+VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray);
 VOID EnumProcessesExit(ADDRINT eax);
 VOID Process32FirstNextEntry(ADDRINT* processInformations);
@@ -49,6 +49,7 @@ VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer);
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo);
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
+VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
 
 /* ===================================================================== */
 /* INSTRUCTION HOOKS (taint sinks)                                       */

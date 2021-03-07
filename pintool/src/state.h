@@ -37,6 +37,13 @@ namespace State {
 	};
 
 	/* ===================================================================== */
+	/* Structure to store API outputs                                        */
+	/* ===================================================================== */
+	struct apiOutputs {
+		ADDRINT* cursorPointerInformations;
+	};
+
+	/* ===================================================================== */
 	/* Initialization function to allocate memory for structures             */
 	/* ===================================================================== */
 	void init();
@@ -45,12 +52,22 @@ namespace State {
 	/* Function to access the structure that stores global objects           */
 	/* ===================================================================== */
 	globalState* getGlobalState();
+
+	/* ===================================================================== */
+	/* Function to access the structure that stores API outputs              */
+	/* ===================================================================== */
+	apiOutputs* getApiOutputs();
 };
 
 /* ===================================================================== */
 /* Singleton structure object to access global objects                   */
 /* ===================================================================== */
 extern State::globalState _globalState;
+
+/* ===================================================================== */
+/* Singleton structure object to access API outputs                      */
+/* ===================================================================== */
+extern State::apiOutputs _apiOutputs;
 
 /* ===================================================================== */
 /* Update structure that store global objects                            */
