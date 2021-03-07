@@ -24,12 +24,21 @@
 #define TAINT_COLOR_8 0x08
 
 /* ============================================================================= */
-/* Define function to taint a register using thread_ctx_ptr and GPR from libdft  */
-/* ============================================================================ */
+/* Define macro to taint a register using thread_ctx_ptr and GPR from libdft     */
+/* ============================================================================= */
 #define TAINT_TAG_REG(ctx, taint_gpr, t0, t1, t2, t3) do { \
 tag_t _tags[4] = {t0, t1, t2, t3}; \
 thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); \
 addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
+} while (0)
+
+/* ============================================================================= */
+/* Define macro to check the return address in ESP and check if is program code  */
+/* ============================================================================= */
+#define CHECK_ESP_RETURN_ADDRESS(ESP) do { \
+State::globalState* gs = State::getGlobalState(); \
+itreenode_t* node = itree_search(gs->dllRangeITree, *ESP); \
+if(node != NULL) return; \
 } while (0)
 
 /* ===================================================================== */
@@ -171,14 +180,6 @@ namespace Functions {
 }
 
 /* API HOOKS (taint sources) begin here */
-
-/*
-inserire in ogni API hook 
-itreenode_t* node = itree_search(intervalTree, *ESP);
-check if not NULL, do taint
-IARG_REG_VALUE,
-REG_STACK_PTR,
-*/
 
 VOID taintRegisterEax(CONTEXT* ctx) {
 	TAINT_TAG_REG(ctx, GPR_EAX, 0, 0, 0, 0);

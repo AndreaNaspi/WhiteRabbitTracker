@@ -43,7 +43,7 @@ void addTaintMemory(ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::strin
 	if (addr == 0 || addr == NULL)
 		return;
 	// Taint the memory addresses
-	// std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
+	std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
 	for (UINT32 i = 0; i < size; ++i) {
 		tag_t t = tag;
 		if (!reset) t |= tagmap_getb(addr + i);
