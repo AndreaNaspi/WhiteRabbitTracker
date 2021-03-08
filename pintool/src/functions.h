@@ -42,7 +42,7 @@ namespace Functions {
 VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray);
-VOID EnumProcessesExit(ADDRINT eax);
+VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp);
 VOID Process32FirstNextEntry(ADDRINT* processInformations);
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
@@ -51,7 +51,7 @@ VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer);
 VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo);
 VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp);
-VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax);
+VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
 
