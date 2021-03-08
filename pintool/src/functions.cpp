@@ -242,9 +242,8 @@ VOID EnumProcessesExit(ADDRINT eax) {
 	// taint source: API return value
 	State::apiOutputs* gs = State::getApiOutputs();
 	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
-	ADDRINT* processesInfo = (ADDRINT*)*pc->lpidProcesses; // pointer to pointer??!!
 	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses; // pointer to pointer??!!
-	addTaintMemory(*processesInfo, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
+	addTaintMemory(*pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
 VOID Process32FirstNextEntry(ADDRINT* pointerToProcessInformations) {
@@ -257,8 +256,7 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	ADDRINT* processesInformations = (ADDRINT*)*gs->lpProcessInformations;  // pointer to pointer??!!
-	addTaintMemory(*processesInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next"); // follow-up pointers in structure??
+	addTaintMemory(*gs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next"); // follow-up pointers in structure??
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {
@@ -290,8 +288,7 @@ VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	ADDRINT* memoryInformations = (ADDRINT*)*gs->lpMemoryInformations;  // pointer to pointer??!!
-	addTaintMemory(*memoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus"); 
+	addTaintMemory(*gs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
 }
 
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo) {
@@ -304,8 +301,7 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	ADDRINT* systemInformations = (ADDRINT*)*gs->lpSystemInformations;  // pointer to pointer??!!
-	addTaintMemory(*systemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo"); // follow-up pointers in structure??
+	addTaintMemory(*gs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo"); // follow-up pointers in structure??
 }
 
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax) {
@@ -323,8 +319,8 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	ADDRINT* cursorPointerInformations = (ADDRINT*)*gs->lpCursorPointerInformations;  // pointer to pointer??!!
-	addTaintMemory(*cursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+	// ADDRINT* cursorPointerInformations = (ADDRINT*)*gs->lpCursorPointerInformations;  // pointer to pointer??!!
+	addTaintMemory(*gs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
 
