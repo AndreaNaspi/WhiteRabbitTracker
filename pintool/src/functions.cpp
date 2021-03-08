@@ -66,7 +66,6 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("Process32FirstW", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32Next", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXT_INDEX));
-		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceEx", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExA", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExW", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GlobalMemoryStatusEx", GLOBALMEMORYSTATUS_INDEX));
@@ -138,6 +137,11 @@ namespace Functions {
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
 							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)Process32FirstNextExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
 						break;
 					// API GetDiskFreeSpace
 					case GETDISKFREESPACE_INDEX:
@@ -147,12 +151,22 @@ namespace Functions {
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 2,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 3,
 							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetDiskFreeSpaceExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
 						break;
 					// API GlobalMemoryStatus
 					case GLOBALMEMORYSTATUS_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve memory informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GlobalMemoryStatusEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GlobalMemoryStatusExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
 					// API GetSystemInfo
@@ -217,50 +231,82 @@ VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 }
 
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray) {
-	//W::LPDWORD test = (W::LPDWORD) *pointerToBytesProcessesArray;
-	//ADDRINT value = *test;
 	// store the lpProcessesArray and bytes variable into global variables
-	State::globalState* gs = State::getGlobalState();
-	gs->pointerToLpidProcess = pointerToProcessesArray;
-	gs->pointerToBytesLpidProcess = pointerToBytesProcessesArray;
+	State::apiOutputs* gs = State::getApiOutputs();
+	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
+	pc->lpidProcesses = pointerToProcessesArray;
+	pc->bytesLpidProcesses = pointerToBytesProcessesArray;
 }
 
 VOID EnumProcessesExit(ADDRINT eax) {
 	// taint source: API return value
-	State::globalState* gs = State::getGlobalState();
-	//addTaintMemory(*gs->pointerToLpidProcess, *gs->pointerToBytesLpidProcess, TAINT_COLOR_1, true, "EnumProcesses");
+	State::apiOutputs* gs = State::getApiOutputs();
+	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
+	ADDRINT* processesInfo = (ADDRINT*)*pc->lpidProcesses; // pointer to pointer??!!
+	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses; // pointer to pointer??!!
+	addTaintMemory(*processesInfo, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
 VOID Process32FirstNextEntry(ADDRINT* pointerToProcessInformations) {
-	// taint source: API processes array
-	addTaintMemory(*pointerToProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next"); // lot of taints?? do it on exit
+	// store processes array into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->lpProcessInformations = pointerToProcessInformations;
+}
+
+VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* gs = State::getApiOutputs();
+	ADDRINT* processesInformations = (ADDRINT*)*gs->lpProcessInformations;  // pointer to pointer??!!
+	addTaintMemory(*processesInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next"); // follow-up pointers in structure??
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {
-	// taint source: disk informations
-	addTaintMemory(*pointerToLpFreeBytesAvailableToCaller, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(*pointerToLpTotalNumberOfBytes, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(*pointerToLpTotalNumberOfFreeBytes, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	// store disk informations into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	State::apiOutputs::diskFreeSpaceInformations *pc = &gs->_diskFreeSpaceInformations;
+	pc->freeBytesAvailableToCaller = pointerToLpFreeBytesAvailableToCaller;
+	pc->totalNumberOfBytes = pointerToLpTotalNumberOfBytes;
+	pc->totalNumberOfFreeBytes = pointerToLpTotalNumberOfFreeBytes;
+}
+
+VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);	
+	State::apiOutputs* gs = State::getApiOutputs();
+	State::apiOutputs::diskFreeSpaceInformations *pc = &gs->_diskFreeSpaceInformations;
+	addTaintMemory(*pc->freeBytesAvailableToCaller, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	addTaintMemory(*pc->totalNumberOfBytes, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	addTaintMemory(*pc->totalNumberOfFreeBytes, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
 }
 
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer) {
-	// taint source: memory informations
-	addTaintMemory(*pointerToLpBuffer, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
+	// store memory informations into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->lpMemoryInformations = pointerToLpBuffer;
+}
+
+VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* gs = State::getApiOutputs();
+	ADDRINT* memoryInformations = (ADDRINT*)*gs->lpMemoryInformations;  // pointer to pointer??!!
+	addTaintMemory(*memoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus"); 
 }
 
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo) {
 	// store system informations into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
-	gs->systemInfoInformations = pointerToLpSystemInfo;
+	gs->lpSystemInformations = pointerToLpSystemInfo;
 }
 
 VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	addTaintMemory(*gs->systemInfoInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
+	ADDRINT* systemInformations = (ADDRINT*)*gs->lpSystemInformations;  // pointer to pointer??!!
+	addTaintMemory(*systemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo"); // follow-up pointers in structure??
 }
-
 
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax) {
 	// taint source: API return value
@@ -270,14 +316,15 @@ VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax) {
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint) {
 	// store mouse pointer informations into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
-	gs->cursorPointerInformations = pointerToLpPoint;
+	gs->lpCursorPointerInformations = pointerToLpPoint;
 }
 
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	addTaintMemory(*gs->cursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+	ADDRINT* cursorPointerInformations = (ADDRINT*)*gs->lpCursorPointerInformations;  // pointer to pointer??!!
+	addTaintMemory(*cursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
 

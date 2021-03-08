@@ -40,8 +40,19 @@ namespace State {
 	/* Structure to store API outputs                                        */
 	/* ===================================================================== */
 	struct apiOutputs {
-		ADDRINT* cursorPointerInformations;
-		ADDRINT* systemInfoInformations;
+		ADDRINT* lpProcessInformations;
+		ADDRINT* lpCursorPointerInformations;
+		ADDRINT* lpMemoryInformations;
+		ADDRINT* lpSystemInformations;
+		struct enumProcessesInformations {
+			ADDRINT* lpidProcesses;
+			ADDRINT* bytesLpidProcesses;
+		} _enumProcessesInformations;
+		struct diskFreeSpaceInformations {
+			ADDRINT* freeBytesAvailableToCaller;
+			ADDRINT* totalNumberOfBytes;
+			ADDRINT* totalNumberOfFreeBytes;
+		} _diskFreeSpaceInformations;
 	};
 
 	/* ===================================================================== */
