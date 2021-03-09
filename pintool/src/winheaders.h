@@ -8,6 +8,7 @@ namespace W {
 	#include "Intsafe.h"
 	#include "OAIdl.h" // MEH for W::VARIANT
 	#include "shlwapi.h"
+	#include <debugapi.h> 
 }
 
 // constants that depend on Windows version

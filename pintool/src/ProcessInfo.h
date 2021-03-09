@@ -3,9 +3,15 @@
 #include "pin.H"
 
 #include <map>
+#include <iostream>
 #include "state.h"
 #include "itree.h"
 #include "ModuleInfo.h"
+using std::cerr;
+using std::ofstream;
+using std::ios;
+using std::string;
+using std::endl;
 
 #define UNKNOWN_ADDR ~ADDRINT(0)
 

@@ -9,6 +9,7 @@ namespace W {
 	#include <WinUser.h>
 	#include <Ws2tcpip.h>
 	#include <tlhelp32.h>
+	#include <debugapi.h> 
 }
 
 // libdft
@@ -23,6 +24,7 @@ namespace W {
 #include <WinUser.h>
 #include <Ws2tcpip.h>
 #include <tlhelp32.h>
+#include <debugapi.h> 
 }
 
 namespace Functions {

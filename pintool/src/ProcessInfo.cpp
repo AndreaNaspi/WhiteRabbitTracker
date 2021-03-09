@@ -63,7 +63,6 @@ const bool ProcessInfo::updateTracedModuleSection(ADDRINT Rva) {
 /* Function to add the current image to the interval tree                */
 /* ===================================================================== */
 void ProcessInfo::addCurrentImageToTree(IMG img) {
-	// We only want to track main executable images
 	if (IMG_IsMainExecutable(img)) {
 		return;
 	}
@@ -78,6 +77,7 @@ void ProcessInfo::addCurrentImageToTree(IMG img) {
 	if (strstr(data, "windows\\system32\\") || strstr(data, "windows\\syswow64\\") || strstr(data, "windows\\winsxs\\")) {
 		// Get the image start address
 		ADDRINT imgStart = IMG_LowAddress(img);
+
 		// Get the image end address
 		ADDRINT imgEnd = IMG_HighAddress(img);
 
