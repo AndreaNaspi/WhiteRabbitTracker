@@ -40,6 +40,7 @@ namespace Functions {
 /* API HOOKS (taint sources)                                             */
 /* ===================================================================== */
 VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
+VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent);
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray);
 VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp);

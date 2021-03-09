@@ -36,9 +36,10 @@ addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
 /* ============================================================================= */
 /* Define macro to check the return address in ESP and check if is program code  */
 /* ============================================================================= */
-#define CHECK_ESP_RETURN_ADDRESS(ESP) do { \
+#define CHECK_ESP_RETURN_ADDRESS(esp_pointer) do { \
+ADDRINT espValue = *((ADDRINT*) esp_pointer); \
 State::globalState* gs = State::getGlobalState(); \
-itreenode_t* node = itree_search(gs->dllRangeITree, ESP); \
+itreenode_t* node = itree_search(gs->dllRangeITree, espValue); \
 if(node != NULL) return; \
 } while (0)
 
@@ -112,7 +113,11 @@ namespace Functions {
 						break;
 					// API CheckRemoteDebuggerPresent 
 					case CHECKREMOTEDEBUGGERPRESENT_INDEX:
-						// Add hooking with IPOINT_AFTER to retrieve taint the EAX register on output
+						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve pbDebuggerPresent)
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)CheckRemoteDebuggerPresentEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to the nemory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)CheckRemoteDebuggerPresentExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_EAX,
@@ -217,7 +222,7 @@ namespace Functions {
 /* API HOOKS (taint sources) begin here */
 
 VOID taintRegisterEax(CONTEXT* ctx) {
-	TAINT_TAG_REG(ctx, GPR_EAX, 0, 0, 0, 0);
+	TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 }
 
 VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
@@ -226,10 +231,17 @@ VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	taintRegisterEax(ctx);
 }
 
+VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent) {
+	// store the pbDebuggerPresent into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->lpbDebuggerPresent = pbDebuggerPresent;
+}
+
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
-	taintRegisterEax(ctx);
+	State::apiOutputs* gs = State::getApiOutputs();
+	addTaintMemory(*gs->lpbDebuggerPresent, sizeof(W::BOOL), TAINT_COLOR_1, true, "CheckRemoteDebuggerPresent");
 }
 
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray) {

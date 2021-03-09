@@ -70,10 +70,12 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 #if 1
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		std::cerr << "CHECK" << std::endl;
 		// Check if we are in the program code (use itree search and check if null)
 		State::globalState* gs = State::getGlobalState();
 		if (itree_search(gs->dllRangeITree, addr) == NULL)
 			goto END;
+		std::cerr << "CHECK2" << std::endl;
 		// Get the tainted instruction in a buffer (using INS_Disassemble)
 		char buf[512];
 		sprintf(buf, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
@@ -157,7 +159,6 @@ void instrumentForTaintCheck(INS ins) {
 	if (INS_MaxNumRRegs(ins) == 0) return; 
 
 	UINT32 operands = INS_OperandCount(ins);
-
 	//Titerate over registers
 	for (UINT32 opIdx = 0; opIdx < operands; ++opIdx) {
 		if (INS_OperandIsReg(ins, opIdx) && INS_OperandRead(ins, opIdx)) {

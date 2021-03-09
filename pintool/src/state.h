@@ -40,6 +40,7 @@ namespace State {
 	/* Structure to store API outputs                                        */
 	/* ===================================================================== */
 	struct apiOutputs {
+		ADDRINT* lpbDebuggerPresent;
 		ADDRINT* lpProcessInformations;
 		ADDRINT* lpCursorPointerInformations;
 		ADDRINT* lpMemoryInformations;

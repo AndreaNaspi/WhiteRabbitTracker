@@ -1,7 +1,7 @@
 #pragma once
 
 namespace W {
-	#include "windows.h"
+	#include "Windows.h"
 	#include <tlhelp32.h>
 	#include "Winternl.h"
 	#include "winnt.h"
