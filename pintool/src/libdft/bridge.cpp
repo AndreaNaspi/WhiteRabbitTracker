@@ -65,17 +65,22 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 * @ins:	address of the offending instruction
 * @bt:  address of the branch target
 */
-
+/*
+if (itree_search(gs->dllRangeITree, addr) == NULL) // CHECK ONLY MAIN EXECUTABLE??
+goto END;
+*/
 static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, INS ins) {
 #if 1
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
-		std::cerr << "CHECK" << std::endl;
 		// Check if we are in the program code (use itree search and check if null)
 		State::globalState* gs = State::getGlobalState();
-		if (itree_search(gs->dllRangeITree, addr) == NULL)
+		PIN_LockClient();
+		IMG callerModule = IMG_FindByAddress(addr);
+		if (!IMG_IsMainExecutable(callerModule))
 			goto END;
-		std::cerr << "CHECK2" << std::endl;
+		PIN_UnlockClient();
+
 		// Get the tainted instruction in a buffer (using INS_Disassemble)
 		char buf[512];
 		sprintf(buf, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());

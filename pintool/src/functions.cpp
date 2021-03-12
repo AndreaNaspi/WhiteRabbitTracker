@@ -73,6 +73,9 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("GetSystemInfo", GETSYSTEMINFO_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
+		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindFirstFileW", FINDFIRSTNEXTFILE_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindNextFileW", FINDFIRSTNEXTFILE_INDEX));
 
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
 
@@ -141,7 +144,8 @@ namespace Functions {
 					case PROCESS32FIRSTNEXT_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve process informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
-							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+							IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
 							IARG_END);
 						// Add hooking with IPOINT_AFTER to taint the memory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)Process32FirstNextExit,
@@ -208,6 +212,18 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
+					// API FindFirstFile and FindNextFile
+					case FINDFIRSTNEXTFILE_INDEX:
+						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve file informations)
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)FindFirstNextFileEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)FindFirstNextFileExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
 					default:
 						break;
 
@@ -261,7 +277,7 @@ VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp) {
 	addTaintMemory(*pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
-VOID Process32FirstNextEntry(ADDRINT* pointerToProcessInformations) {
+VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
 	// store processes array into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
 	gs->lpProcessInformations = pointerToProcessInformations;
@@ -271,10 +287,12 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	W::LPPROCESSENTRY32 processEntry32Structure = (W::LPPROCESSENTRY32) gs->lpProcessInformations;
-	ADDRINT th32DefaultHeapID = processEntry32Structure->th32DefaultHeapID; // inner-pointer th32DefaultHeapID
-	addTaintMemory(*gs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
-	addTaintMemory(th32DefaultHeapID, sizeof(W::ULONG), TAINT_COLOR_1, true, "Process32First/Process32Next th32DefaultHeapID");
+	/*
+	W::LPPROCESSENTRY32W processStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformations;
+	W::WCHAR* szExeFile = processStructure->szExeFile; // inner-pointer szExeFile
+	addTaintMemory((ADDRINT)szExeFile, sizeof(W::WCHAR)*MAX_PATH, TAINT_COLOR_1, true, "Process32First/Process32Next szExeFile");
+	*/
+	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32First/Process32Next");
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {
@@ -291,9 +309,9 @@ VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);	
 	State::apiOutputs* gs = State::getApiOutputs();
 	State::apiOutputs::diskFreeSpaceInformations *pc = &gs->_diskFreeSpaceInformations;
-	addTaintMemory(*pc->freeBytesAvailableToCaller, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(*pc->totalNumberOfBytes, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(*pc->totalNumberOfFreeBytes, sizeof(W::PULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	addTaintMemory(*pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	addTaintMemory(*pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	addTaintMemory(*pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
 }
 
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer) {
@@ -342,6 +360,19 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
 	addTaintMemory(*gs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+}
+
+VOID FindFirstNextFileEntry(ADDRINT* lpFileData) {
+	// store processes array into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->lpFindFileInformations = lpFileData;
+}
+
+VOID FindFirstNextFileExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* gs = State::getApiOutputs();
+	addTaintMemory(*gs->lpFindFileInformations, sizeof(W::WIN32_FIND_DATAW), TAINT_COLOR_1, true, "FindFirstFile/FindNextFile");
 }
 
 

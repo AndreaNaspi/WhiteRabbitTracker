@@ -46,7 +46,7 @@ VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent);
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray);
 VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp);
-VOID Process32FirstNextEntry(ADDRINT* processInformations);
+VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations);
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
 VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp);
@@ -57,6 +57,8 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
+VOID FindFirstNextFileEntry(ADDRINT* lpFileData);
+VOID FindFirstNextFileExit(CONTEXT* ctx, ADDRINT esp);
 
 /* ===================================================================== */
 /* INSTRUCTION HOOKS (taint sinks)                                       */
@@ -84,5 +86,6 @@ enum {
 	GETSYSTEMINFO_INDEX,
 	GETTICKCOUNT_INDEX,
 	GETUSERNAME_INDEX,
-	GETCURSORPOS_INDEX
+	GETCURSORPOS_INDEX,
+	FINDFIRSTNEXTFILE_INDEX
 };
