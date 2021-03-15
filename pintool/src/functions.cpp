@@ -74,8 +74,6 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
-		fMap.insert(std::pair<std::string, int>("FindFirstFileW", FINDFIRSTNEXTFILE_INDEX));
-		fMap.insert(std::pair<std::string, int>("FindNextFileW", FINDFIRSTNEXTFILE_INDEX));
 
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
 
@@ -208,18 +206,6 @@ namespace Functions {
 							IARG_END);
 						// Add hooking with IPOINT_AFTER to taint the memory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetCursorPosExit,
-							IARG_CONTEXT,
-							IARG_REG_VALUE, REG_STACK_PTR,
-							IARG_END);
-						break;
-					// API FindFirstFile and FindNextFile
-					case FINDFIRSTNEXTFILE_INDEX:
-						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve file informations)
-						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)FindFirstNextFileEntry,
-							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
-							IARG_END);
-						// Add hooking with IPOINT_AFTER to taint the memory on output
-						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)FindFirstNextFileExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
@@ -361,20 +347,6 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	State::apiOutputs* gs = State::getApiOutputs();
 	addTaintMemory(*gs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
-
-VOID FindFirstNextFileEntry(ADDRINT* lpFileData) {
-	// store processes array into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpFindFileInformations = lpFileData;
-}
-
-VOID FindFirstNextFileExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
-	CHECK_ESP_RETURN_ADDRESS(esp);
-	State::apiOutputs* gs = State::getApiOutputs();
-	addTaintMemory(*gs->lpFindFileInformations, sizeof(W::WIN32_FIND_DATAW), TAINT_COLOR_1, true, "FindFirstFile/FindNextFile");
-}
-
 
 /* END OF API HOOKS */
 
