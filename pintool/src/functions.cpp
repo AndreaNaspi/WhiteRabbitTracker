@@ -273,11 +273,6 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	/*
-	W::LPPROCESSENTRY32W processStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformations;
-	W::WCHAR* szExeFile = processStructure->szExeFile; // inner-pointer szExeFile
-	addTaintMemory((ADDRINT)szExeFile, sizeof(W::WCHAR)*MAX_PATH, TAINT_COLOR_1, true, "Process32First/Process32Next szExeFile");
-	*/
 	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32First/Process32Next");
 }
 

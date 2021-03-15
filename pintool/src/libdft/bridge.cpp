@@ -72,7 +72,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 #if 1
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
-		// Check if we are in the program code (use itree search and check if null)
+		// Check if we are in the program code (use itree search and check if not null)
 		State::globalState* gs = State::getGlobalState();
 		if (itree_search(gs->dllRangeITree, addr) != NULL)
 			goto END;
