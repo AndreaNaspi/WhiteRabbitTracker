@@ -65,9 +65,6 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 * @ins:	address of the offending instruction
 * @bt:  address of the branch target
 */
-/*
-
-*/
 static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, INS ins) {
 #if 1
 	// If the thread context is tainted

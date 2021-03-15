@@ -73,7 +73,6 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("GetSystemInfo", GETSYSTEMINFO_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
-		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
 
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
 
