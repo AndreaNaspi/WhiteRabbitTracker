@@ -47,11 +47,6 @@ public:
 	static void AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip);
 
 	/* ===================================================================== */
-	/* Function to handle and log the rdtsc instruction                      */
-	/* ===================================================================== */
-	static void RdtscCalled(const CONTEXT* ctxt);
-
-	/* ===================================================================== */
 	/* Utility functionts to alter edx and eax (rdtsc results) in case of    */
 	/* rdtsc instruction (avoid VM/Sandbox detection)                        */
 	/* ===================================================================== */

@@ -71,6 +71,8 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 	if (TTINFO(tainted)) {
 		// Check if we are in the program code (use itree search and check if not null)
 		State::globalState* gs = State::getGlobalState();
+		// set a static variable to 1 to check the called API by export table
+		// set to 0 when == NULL
 		if (itree_search(gs->dllRangeITree, addr) != NULL)
 			goto END;
 		// Get the tainted instruction in a buffer (using INS_Disassemble)

@@ -33,16 +33,12 @@ KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.tag", 
 /* Function called for every loaded module                               */
 /* ===================================================================== */
 VOID ImageLoad(IMG Image, VOID *v) {
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
 	// Add the module to the current process
 	pInfo.addModule(Image);
 	// Insert the current image to the interval tree
 	pInfo.addCurrentImageToTree(Image);
 	// Add APIs hooking for the current image
 	Functions::AddHooks(Image);
-	// Exit critical section
-	PIN_UnlockClient();
 }
 
 /* ===================================================================== */
@@ -57,10 +53,11 @@ VOID ImageUnload(IMG Image, VOID* v) {
 /* Function called BEFORE every INSTRUCTION (ins)                        */
 /* ===================================================================== */
 VOID InstrumentInstruction(INS ins, VOID *v) {
-	// check for special instructions (cpuid, rdts, int and in) to install handlers and avoid VM/sandbox detection
+	// Check for special instructions (cpuid, rdts, int and in) to install handlers and avoid VM/sandbox detection
 	specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
 
 	// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
+	/*
 	if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
 		// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
 		// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
@@ -73,6 +70,7 @@ VOID InstrumentInstruction(INS ins, VOID *v) {
 			IARG_END
 		);
 	}
+	*/
 }
 
 /* ===================================================================== */
@@ -249,6 +247,25 @@ VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *) {
 }
 
 /* ===================================================================== */
+/* Function to handle the exceptions (anti-DBI checks)                   */
+/* ===================================================================== */
+EXCEPT_HANDLING_RESULT CONTEXT_InternalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v) {
+	// Handle single-step exception
+	if (pExceptInfo->GetExceptCode() == EXCEPTCODE_DBG_SINGLE_STEP_TRAP) {
+		ExceptionHandler *eh = ExceptionHandler::getInstance();
+		eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
+		return EHR_HANDLED;
+	} 
+	// Libdft hack for EFLAGS (unaligned memory access)
+	else if (PIN_GetExceptionCode(pExceptInfo) == EXCEPTCODE_ACCESS_MISALIGNED) {
+		// Clear EFLAGS.AC
+		PIN_SetPhysicalContextReg(pPhysCtxt, REG_EFLAGS, CLEAR_EFLAGS_AC(PIN_GetPhysicalContextReg(pPhysCtxt, REG_EFLAGS)));
+		return EHR_HANDLED;
+	}
+	return EHR_CONTINUE_SEARCH;
+}
+
+/* ===================================================================== */
 /* Print Help Message (usage message)                                    */
 /* ===================================================================== */
 INT32 Usage() {
@@ -299,6 +316,9 @@ int main(int argc, char * argv[]) {
 
 	// Initialize ProcessInfo object 
 	pInfo.init(app_name);
+
+	// Register exception control flow
+	PIN_AddInternalExceptionHandler(CONTEXT_InternalExceptionHandler, NULL);
 
 	// Initialize SpecialInstructions (to handle special instructions) object with related modules (processInfo and logInfo)
 	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();

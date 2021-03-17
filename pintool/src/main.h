@@ -62,6 +62,11 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *);
 VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *);
 
 /* ===================================================================== */
+/* Function to handle the exceptions (anti-DBI checks)                   */
+/* ===================================================================== */
+EXCEPT_HANDLING_RESULT CONTEXT_InternalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v);
+
+/* ===================================================================== */
 /* Print Help Message (usage message)                                    */
 /* ===================================================================== */
 INT32 Usage();

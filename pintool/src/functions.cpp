@@ -258,7 +258,7 @@ VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
 	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
-	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses; // pointer to pointer??!!
+	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses;
 	addTaintMemory(*pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 

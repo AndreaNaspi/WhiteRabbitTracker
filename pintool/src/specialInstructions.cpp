@@ -88,13 +88,6 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
 	else if (INS_IsRDTSC(ins) || diassembled_ins.find("rdtsc") != std::string::npos) {
-		// Insert a pre-call before rdtsc to log the instruction
-		INS_InsertCall(
-			ins,
-			IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::RdtscCalled,
-			IARG_CONTEXT,
-			IARG_END
-		);
 		// Insert a post-call to alter edx register (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		// Specify IARG_RETURN_REGS and REG_GDX to write on a specific return register (rdtsc result)
 		INS_InsertCall(
@@ -137,33 +130,12 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT cur_eip) {
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
 	// Get address and parameters of the instruction
 	ADDRINT Address = (ADDRINT)PIN_GetContextReg(ctxt, REG_INST_PTR);
 	ADDRINT _eax;
 	PIN_GetContextRegval(ctxt, REG_GAX, reinterpret_cast<UINT8*>(&_eax));
-
-	// Get the current image of the instruction
-	IMG currModule = IMG_FindByAddress(Address);
-	// Check if the instruction is from the current process and log the cpuid instruction
-	const bool isCurrMy = classHandler->pInfo->isMyAddress(Address);
-	if (isCurrMy) {
-		ADDRINT rva = addr_to_rva(Address);
-		classHandler->logInfo->logCpuid(0, rva, _eax);
-	}
-	// Check if the instruction is from an invalid image (possible shellcode) and log the cpuid instruction
-	if (!IMG_Valid(currModule)) {
-		const ADDRINT start = GetPageOfAddr(Address);
-		ADDRINT rva = Address - start;
-		if (start != UNKNOWN_ADDR) {
-			classHandler->logInfo->logCpuid(start, rva, _eax);
-		}
-	}
 	// Save the parameter (register EAX) to save the category ofi nformation
 	classHandler->cpuid_eax = _eax;
-	// Exit critical section
-	PIN_UnlockClient();
 }
 
 /* ===================================================================== */
@@ -172,8 +144,6 @@ void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT 
 void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
 	// Get cpuid results (EBX, ECX, EDX)
 	ADDRINT _ebx, _ecx, _edx;
 	PIN_GetContextRegval(ctxt, REG_GDX, reinterpret_cast<UINT8*>(&_edx));
@@ -195,38 +165,6 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 	PIN_SetContextReg(ctxt, REG_GCX, _ecx);
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);
 	PIN_SetContextReg(ctxt, REG_GDX, _edx);
-	// Exit critical section
-	PIN_UnlockClient();
-}
-
-/* ===================================================================== */
-/* Function to handle and log the rdtsc instruction                      */
-/* ===================================================================== */
-void SpecialInstructionsHandler::RdtscCalled(const CONTEXT* ctxt) {
-	// Get class instance to access objects
-	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
-	// Get address of the instruction
-	ADDRINT Address = (ADDRINT)PIN_GetContextReg(ctxt, REG_INST_PTR);
-	// Get the current image of the instruction
-	IMG currModule = IMG_FindByAddress(Address);
-	// Check if the instruction is from the current process and log the rdtsc instruction
-	const bool isCurrMy = classHandler->pInfo->isMyAddress(Address);
-	if (isCurrMy) {
-		ADDRINT rva = addr_to_rva(Address); 
-		classHandler->logInfo->logRdtsc(0, rva);
-	}
-	// Check if the instruction is from an invalid image (possible shellcode) and log the rdtsc instruction
-	if (!IMG_Valid(currModule)) {
-		const ADDRINT start = GetPageOfAddr(Address);
-		ADDRINT rva = Address - start;
-		if (start != UNKNOWN_ADDR) {
-			classHandler->logInfo->logRdtsc(start, rva);
-		}
-	}
-	// Exit critical section
-	PIN_UnlockClient();
 }
 
 /* ===================================================================== */
@@ -234,12 +172,8 @@ void SpecialInstructionsHandler::RdtscCalled(const CONTEXT* ctxt) {
 /* ===================================================================== */
 ADDRINT SpecialInstructionsHandler::AlterRdtscValueEdx(const CONTEXT* ctxt) {
 	ADDRINT result = 0;
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
 	// Alter the result timer (rdtsc result)
 	result = setTimer(ctxt, false);
-	// Exit critical section
-	PIN_UnlockClient();
 	// Return changed value (unused for the moment)
 	return result;
 }
@@ -249,12 +183,8 @@ ADDRINT SpecialInstructionsHandler::AlterRdtscValueEdx(const CONTEXT* ctxt) {
 /* ===================================================================== */
 ADDRINT SpecialInstructionsHandler::AlterRdtscValueEax(const CONTEXT* ctxt) {
 	ADDRINT result = 0;
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
 	// Alter the result timer (rdtsc result)
 	result = setTimer(ctxt, true);
-	// Exit critical section
-	PIN_UnlockClient();
 	// Return changed value (unused for the moment)
 	return result;
 }
@@ -266,29 +196,8 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt) {
 	// Get class instance to access objects
 	ExceptionHandler *eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
-	// Log instruction int 2d
-	ADDRINT Address = (ADDRINT)PIN_GetContextReg(ctxt, REG_INST_PTR);
-	IMG currModule = IMG_FindByAddress(Address);
-	// Check if the instruction is from the current process and log the int 2d instruction
-	const bool isCurrMy = classHandler->pInfo->isMyAddress(Address);
-	if (isCurrMy) {
-		ADDRINT rva = addr_to_rva(Address);
-		classHandler->logInfo->logInt2d(0, rva);
-	}
-	// Check if the instruction is from an invalid image (possible shellcode) and log the int 2d instruction
-	if (!IMG_Valid(currModule)) {
-		const ADDRINT start = GetPageOfAddr(Address);
-		ADDRINT rva = Address - start;
-		if (start != UNKNOWN_ADDR) {
-			classHandler->logInfo->logInt2d(start, rva);
-		}
-	}
 	// Insert and call exception on int 2d
 	eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
-	// Exit critical section
-	PIN_UnlockClient();
 }
 
 /* ===================================================================== */
@@ -297,30 +206,10 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt) {
 void SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx(CONTEXT* ctxt) {
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
-	// Enter critical section (ensure that we can call PIN APIs)
-	PIN_LockClient();
-	// Log instruction 'in eax, dx'
-	ADDRINT Address = (ADDRINT)PIN_GetContextReg(ctxt, REG_INST_PTR);
-	IMG currModule = IMG_FindByAddress(Address);
-	// Check if the instruction is from the current process and log the 'in eax, dx' instruction
-	const bool isCurrMy = classHandler->pInfo->isMyAddress(Address);
-	if (isCurrMy) {
-		ADDRINT rva = addr_to_rva(Address);
-		classHandler->logInfo->logInEaxDx(0, rva);
-	}
-	// Check if the instruction is from an invalid image (possible shellcode) and log the 'in eax, dx' instruction
-	if (!IMG_Valid(currModule)) {
-		const ADDRINT start = GetPageOfAddr(Address);
-		ADDRINT rva = Address - start;
-		if (start != UNKNOWN_ADDR) {
-			classHandler->logInfo->logInEaxDx(start, rva);
-		}
-	}
 	// Change return value (ebx) of the instruction 'in eax, dx'
 	ADDRINT _ebx = 0;
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);
-	// Exit critical section
-	PIN_UnlockClient();
+	// TAINT EAX OR EBX
 }
 
 /* ===================================================================== */

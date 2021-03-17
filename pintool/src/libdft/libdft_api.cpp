@@ -538,7 +538,7 @@ libdft_init(ADDRINT version_mask)
 	TRACE_AddInstrumentFunction(trace_inspect, (VOID *)version_mask);
 
 	/* FIXME: ugly hack for bypassing unaligned address checks */
-	PIN_AddInternalExceptionHandler(fix_eflags, NULL);
+	// PIN_AddInternalExceptionHandler(fix_eflags, NULL);
 
 	/* success */
 	return 0;
@@ -563,9 +563,6 @@ int libdft_init_data_only() {
 
 	/* register trace_ins() to be called for every trace */
 	TRACE_AddInstrumentFunction(trace_inspect, (VOID *)0);
-
-	/* ugly hack for bypassing unaligned address checks */
-	PIN_AddInternalExceptionHandler(fix_eflags, NULL);
 
 	return 0;
 }
