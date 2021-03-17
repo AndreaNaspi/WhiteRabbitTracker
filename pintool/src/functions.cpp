@@ -317,10 +317,10 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	W::LPSYSTEM_INFO systemInfoStructure = (W::LPSYSTEM_INFO) gs->lpSystemInformations;
-	ADDRINT dwActiveProcessorMask = systemInfoStructure->dwActiveProcessorMask; // inner-pointer dwActiveProcessorMask
+	W::LPSYSTEM_INFO systemInfoStructure = (W::LPSYSTEM_INFO) *gs->lpSystemInformations;
+	W::DWORD_PTR* dwActiveProcessorMask = &systemInfoStructure->dwActiveProcessorMask; // inner-pointer dwActiveProcessorMask
 	addTaintMemory(*gs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
-	addTaintMemory(dwActiveProcessorMask, sizeof(W::DWORD), TAINT_COLOR_1, true, "GetSystemInfo dwActiveProcessorMask"); 
+	addTaintMemory((ADDRINT)dwActiveProcessorMask, sizeof(W::DWORD), TAINT_COLOR_1, true, "GetSystemInfo dwActiveProcessorMask");
 }
 
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {

@@ -57,8 +57,6 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
-VOID FindFirstNextFileEntry(ADDRINT* lpFileData);
-VOID FindFirstNextFileExit(CONTEXT* ctx, ADDRINT esp);
 
 /* ===================================================================== */
 /* INSTRUCTION HOOKS (taint sinks)                                       */

@@ -26,8 +26,8 @@ SpecialInstructionsHandler* specialInstructionsHandlerInfo;
 /* Knobs definitions                                                  */
 /* ================================================================== */
 
-// Define knob for output file (used by "-o" option, default value: profile.tag)
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.tag", "specify output file name");
+// Define knob for output file (used by "-o" option, default value: profile.log)
+KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.log", "specify output file name");
 
 /* ===================================================================== */
 /* Function called for every loaded module                               */
