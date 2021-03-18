@@ -37,7 +37,7 @@ VOID InstrumentInstruction(INS ins, VOID *v);
 /* ===================================================================== */
 /* Function called BEFORE the analysis routine to enter critical section */
 /* ===================================================================== */
-VOID SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo);
+VOID SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo, ADDRINT cur_eip);
 
 /* ===================================================================== */
 /* Function called for each ANALYSIS ROUTINE                             */

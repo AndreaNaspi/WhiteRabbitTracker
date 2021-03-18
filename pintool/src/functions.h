@@ -48,6 +48,7 @@ VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToByte
 VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp);
 VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations);
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp);
+VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
 VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp);
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer);
@@ -79,6 +80,7 @@ enum {
 	CHECKREMOTEDEBUGGERPRESENT_INDEX,
 	ENUMPROCESSES_INDEX,
 	PROCESS32FIRSTNEXT_INDEX,
+	PROCESS32FIRSTNEXTW_INDEX,
 	GETDISKFREESPACE_INDEX,
 	GLOBALMEMORYSTATUS_INDEX,
 	GETSYSTEMINFO_INDEX,

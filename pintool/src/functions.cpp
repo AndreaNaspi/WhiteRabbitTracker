@@ -64,9 +64,10 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("EnumProcesses", ENUMPROCESSES_INDEX));
 		fMap.insert(std::pair<std::string, int>("K32EnumProcesses", ENUMPROCESSES_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
-		fMap.insert(std::pair<std::string, int>("Process32FirstW", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32Next", PROCESS32FIRSTNEXT_INDEX));
-		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXT_INDEX));
+		fMap.insert(std::pair<std::string, int>("Process32FirstW", PROCESS32FIRSTNEXTW_INDEX));
+		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXTW_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceEx", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExA", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExW", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GlobalMemoryStatusEx", GLOBALMEMORYSTATUS_INDEX));
@@ -146,6 +147,19 @@ namespace Functions {
 							IARG_END);
 						// Add hooking with IPOINT_AFTER to taint the memory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)Process32FirstNextExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					// API PRocess32FirstW and Process32NextW
+					case PROCESS32FIRSTNEXTW_INDEX:
+						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve process informations)
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
+							IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+							IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)Process32FirstNextWExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
@@ -272,7 +286,24 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32First/Process32Next");
+	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
+}
+
+VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
+	// taint source: API return value
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* gs = State::getApiOutputs();
+	/*
+	// OBTAIN EXE FILE NAME
+	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformations;
+	W::WCHAR* szExeFile = processInfoStructure->szExeFile;
+	char output[MAX_PATH];
+	sprintf(output, "%ls", szExeFile);
+	std::cerr << output << std::endl;
+	const wchar_t** _path = (const wchar_t**)processInfoStructure->szExeFile;
+	*_path = L"abc.exe";
+	*/
+	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {

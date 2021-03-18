@@ -50,18 +50,18 @@ public:
 	/* Utility functionts to alter edx and eax (rdtsc results) in case of    */
 	/* rdtsc instruction (avoid VM/Sandbox detection)                        */
 	/* ===================================================================== */
-	static ADDRINT AlterRdtscValueEdx(const CONTEXT* ctxt);
-	static ADDRINT AlterRdtscValueEax(const CONTEXT* ctxt);
+	static ADDRINT AlterRdtscValueEdx(const CONTEXT* ctxt, ADDRINT cur_eip);
+	static ADDRINT AlterRdtscValueEax(const CONTEXT* ctxt, ADDRINT cur_eip);
 
 	/* ===================================================================== */
 	/* Function to handle the int 2d and log the instruction                 */
 	/* ===================================================================== */
-	static void Int2dCalled(const CONTEXT* ctxt);
+	static void Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_eip);
 
 	/* ===================================================================== */
 	/* Function to handle and log the 'in eax, dx' instruction               */
 	/* ===================================================================== */
-	static void InEaxDxCalledAlterValueEbx(CONTEXT* ctxt);
+	static void InEaxDxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip);
 
 protected:
 	/* ===================================================================== */

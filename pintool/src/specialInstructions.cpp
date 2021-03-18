@@ -1,5 +1,14 @@
 #include "specialInstructions.h"
 
+/* ============================================================================= */
+/* Define macro to check the instruction address and check if is program code    */
+/* ============================================================================= */
+#define CHECK_EIP_ADDRESS(eip_address) do { \
+State::globalState* gs = State::getGlobalState(); \
+itreenode_t* node = itree_search(gs->dllRangeITree, eip_address); \
+if(node != NULL) return; \
+} while (0)
+
 /* ===================================================================== */
 /* constructor for singleton object                                      */
 /* ===================================================================== */
@@ -88,12 +97,14 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
 	else if (INS_IsRDTSC(ins) || diassembled_ins.find("rdtsc") != std::string::npos) {
+		ADDRINT curEip = INS_Address(ins);
 		// Insert a post-call to alter edx register (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		// Specify IARG_RETURN_REGS and REG_GDX to write on a specific return register (rdtsc result)
 		INS_InsertCall(
 			ins,
 			IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValueEdx,
 			IARG_CONTEXT,
+			IARG_ADDRINT, curEip,
 			IARG_RETURN_REGS,
 			REG_GDX,
 			IARG_END);
@@ -102,15 +113,18 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 		INS_InsertCall(ins,
 			IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValueEax,
 			IARG_CONTEXT,
+			IARG_ADDRINT, curEip,
 			IARG_RETURN_REGS,
 			REG_GAX,
 			IARG_END);
 	}
 	// if "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "int 0x2d") || diassembled_ins.find("int 0x2d") != std::string::npos) {
+		ADDRINT curEip = INS_Address(ins);
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::Int2dCalled,
-				       IARG_CONTEXT,
-					   IARG_END);
+				        IARG_CONTEXT,
+						IARG_ADDRINT, curEip,
+					    IARG_END);
 	}
 	// if "in eax, dx" instruction (log and alter values to avoid VMWare detection
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || diassembled_ins.find("in eax, dx") != std::string::npos) {
@@ -119,6 +133,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
+			IARG_ADDRINT, curEip,
 			IARG_END);
 
 	}
@@ -142,6 +157,7 @@ void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT 
 /* Utility function to alter EBX, ECX, EDX (cpuid results)               */
 /* ===================================================================== */
 void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
+	CHECK_EIP_ADDRESS(cur_eip);
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Get cpuid results (EBX, ECX, EDX)
@@ -170,7 +186,8 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 /* ===================================================================== */
 /* Utility function to alter edx (rdtsc result) in case of rdtsc       */
 /* ===================================================================== */
-ADDRINT SpecialInstructionsHandler::AlterRdtscValueEdx(const CONTEXT* ctxt) {
+ADDRINT SpecialInstructionsHandler::AlterRdtscValueEdx(const CONTEXT* ctxt, ADDRINT cur_eip) {
+	// CHECK_EIP_ADDRESS(cur_eip);
 	ADDRINT result = 0;
 	// Alter the result timer (rdtsc result)
 	result = setTimer(ctxt, false);
@@ -181,7 +198,8 @@ ADDRINT SpecialInstructionsHandler::AlterRdtscValueEdx(const CONTEXT* ctxt) {
 /* ===================================================================== */
 /* Utility function to alter eaxrdtsc result) in case of rdtsc           */
 /* ===================================================================== */
-ADDRINT SpecialInstructionsHandler::AlterRdtscValueEax(const CONTEXT* ctxt) {
+ADDRINT SpecialInstructionsHandler::AlterRdtscValueEax(const CONTEXT* ctxt, ADDRINT cur_eip) {
+	// CHECK_EIP_ADDRESS(cur_eip);
 	ADDRINT result = 0;
 	// Alter the result timer (rdtsc result)
 	result = setTimer(ctxt, true);
@@ -192,7 +210,8 @@ ADDRINT SpecialInstructionsHandler::AlterRdtscValueEax(const CONTEXT* ctxt) {
 /* ===================================================================== */
 /* Function to handle the int 2d and log the instruction                 */
 /* ===================================================================== */
-void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt) {
+void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_eip) {
+	CHECK_EIP_ADDRESS(cur_eip);
 	// Get class instance to access objects
 	ExceptionHandler *eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
@@ -203,7 +222,8 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt) {
 /* ===================================================================== */
 /* Function to handle and log the 'in eax, dx' instruction               */
 /* ===================================================================== */
-void SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx(CONTEXT* ctxt) {
+void SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip) {
+	CHECK_EIP_ADDRESS(cur_eip);
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Change return value (ebx) of the instruction 'in eax, dx'

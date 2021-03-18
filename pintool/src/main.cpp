@@ -29,6 +29,15 @@ SpecialInstructionsHandler* specialInstructionsHandlerInfo;
 // Define knob for output file (used by "-o" option, default value: profile.log)
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.log", "specify output file name");
 
+/* ============================================================================= */
+/* Define macro to check the instruction address and check if is program code    */
+/* ============================================================================= */
+#define CHECK_EIP_ADDRESS(eip_address) do { \
+State::globalState* gs = State::getGlobalState(); \
+itreenode_t* node = itree_search(gs->dllRangeITree, eip_address); \
+if(node != NULL) return; \
+} while (0)
+
 /* ===================================================================== */
 /* Function called for every loaded module                               */
 /* ===================================================================== */
@@ -52,31 +61,46 @@ VOID ImageUnload(IMG Image, VOID* v) {
 /* ===================================================================== */
 /* Function called BEFORE every INSTRUCTION (ins)                        */
 /* ===================================================================== */
-VOID InstrumentInstruction(INS ins, VOID *v) {
+VOID InstrumentInstruction(TRACE trace, VOID *v) {
 	// Check for special instructions (cpuid, rdts, int and in) to install handlers and avoid VM/sandbox detection
-	specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
+	// specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
+	/* iterators */
+	BBL bbl;
+	INS ins;
+	xed_iclass_enum_t ins_indx;
 
-	// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
-	/*
-	if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
-		// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
-		// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
-		// hint: remember to use IARG_END (end argument list)!!
-		INS_InsertCall(
-			ins,
-			IPOINT_BEFORE, (AFUNPTR)SaveTransitions,
-			IARG_INST_PTR,
-			IARG_BRANCH_TARGET_ADDR,
-			IARG_END
-		);
+	/* traverse all the BBLs in the trace */
+	for (bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
+		/* traverse all the instructions in the BBL */
+		for (ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+			// Check for special instructions (cpuid, rdts, int and in) to install handlers and avoid VM/sandbox detection
+			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
+			// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
+			/*
+			if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
+				// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
+				// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
+				// hint: remember to use IARG_END (end argument list)!!
+				ADDRINT curEip = INS_Address(ins);
+				INS_InsertCall(
+					ins,
+					IPOINT_BEFORE, (AFUNPTR)SaveTransitions,
+					IARG_INST_PTR,
+					IARG_BRANCH_TARGET_ADDR,
+					IARG_ADDRINT, curEip,
+					IARG_END
+				);
+			}
+			*/
+		}
 	}
-	*/
 }
 
 /* ===================================================================== */
 /* Function called BEFORE the analysis routine to enter critical section */
 /* ===================================================================== */
-VOID SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo) {
+VOID SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo, ADDRINT cur_eip) {
+	CHECK_EIP_ADDRESS(cur_eip);
 	// Enter critical section (ensure that we can call PIN APIs)
 	PIN_LockClient();
 	// Call analysis routine
@@ -331,7 +355,7 @@ int main(int argc, char * argv[]) {
 	IMG_AddUnloadFunction(ImageUnload, NULL);
 
 	// Register function to be called BEFORE every INSTRUCTION (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
-	INS_AddInstrumentFunction(InstrumentInstruction, NULL);
+	// INS_AddInstrumentFunction(InstrumentInstruction, NULL);
 
 	// Register context changes
 	PIN_AddContextChangeFunction(OnCtxChange, NULL);
@@ -342,6 +366,7 @@ int main(int argc, char * argv[]) {
 	// Register thread end evenet to destroy libdft thread context
 	PIN_AddThreadFiniFunction(OnThreadFini, NULL);
 
+	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID *)0);
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {
 		std::cerr << "Error during libdft initialization!" << std::endl;
