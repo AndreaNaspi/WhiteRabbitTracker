@@ -108,6 +108,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
 	else if (INS_IsRDTSC(ins) || diassembled_ins.find("rdtsc") != std::string::npos) {
 		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
+		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValues,
 			IARG_INST_PTR,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
@@ -152,9 +153,6 @@ void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT 
 /* ===================================================================== */
 void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
-	std::cerr << "\n" << std::endl;
-	std::cerr << cur_eip << std::endl;
-
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Get cpuid results (EBX, ECX, EDX)
@@ -166,7 +164,7 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 	if (classHandler->cpuid_eax == 1) {
 		UINT32 mask = 0xFFFFFFFFULL;
 		_ecx &= (mask >> 1);
-		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
+		//TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
 	}
 	// EAX >= 0x40000000 && EAX <= 0x400000FF -> reserved cpuid levels for Intel and AMD to provide an interface to pass information from the hypervisor to the guest (VM)
 	else if (classHandler->cpuid_eax >= 0x40000000 && classHandler->cpuid_eax <= 0x400000FF) {
@@ -174,9 +172,9 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 		_ebx = 0x0ULL;
 		_ecx = 0x0ULL;
 		_edx = 0x0ULL;
-		TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
+		/*TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
 		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
-		TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);*/
 	}
 	// Change cpuid results (EBX, ECX, EDX)
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);

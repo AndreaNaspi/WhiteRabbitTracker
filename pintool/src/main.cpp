@@ -45,14 +45,7 @@ VOID ImageLoad(IMG Image, VOID *v) {
 	// Add the module to the current process
 	pInfo.addModule(Image);
 	// Insert the current image to the interval tree
-	ADDRINT imgStart = IMG_LowAddress(Image);
-	ADDRINT imgEnd = IMG_HighAddress(Image);
-	std::cerr << IMG_Name(Image) << std::endl;
-	std::cerr << imgStart << std::endl;
-	std::cerr << imgEnd << std::endl;
 	pInfo.addCurrentImageToTree(Image);
-
-
 	// Add APIs hooking for the current image
 	Functions::AddHooks(Image);
 }
@@ -81,8 +74,7 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 			// Check for special instructions (cpuid, rdtsc, int and in) to avoid VM/sandbox detection and taint memory
 			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
 			// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
-			/*
-			if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
+			/*if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
 				// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
 				// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
 				// hint: remember to use IARG_END (end argument list)!!
@@ -95,8 +87,7 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 					IARG_ADDRINT, curEip,
 					IARG_END
 				);
-			}
-			*/
+			}*/
 		}
 	}
 }
