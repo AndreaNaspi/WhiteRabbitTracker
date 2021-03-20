@@ -16,8 +16,9 @@ namespace State {
 		memset(&_apiOutputs, 0, sizeof(apiOutputs));
 
 		// Useful time informations (magic numbers)
-		_globalState._timeInfo.tick = 3478921;
-		_globalState._timeInfo._edx_eax = 0x6000000002346573ULL;
+		State::globalState* gs = State::getGlobalState();
+		gs->_timeInfo.tick = 3478921;
+		gs->_timeInfo._edx_eax = 0x6000000002346573ULL;
 	}
 
 	/* ===================================================================== */

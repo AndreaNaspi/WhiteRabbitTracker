@@ -30,7 +30,7 @@ VOID ImageLoad(IMG Image, VOID *v);
 VOID ImageUnload(IMG Image, VOID* v);
 
 /* ===================================================================== */
-/* Function called BEFORE every INSTRUCTION (ins)                        */
+/* Function called BEFORE every TRACE                                    */
 /* ===================================================================== */
 VOID InstrumentInstruction(INS ins, VOID *v);
 
@@ -64,7 +64,7 @@ VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *);
 /* ===================================================================== */
 /* Function to handle the exceptions (anti-DBI checks)                   */
 /* ===================================================================== */
-EXCEPT_HANDLING_RESULT CONTEXT_InternalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v);
+EXCEPT_HANDLING_RESULT internalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v);
 
 /* ===================================================================== */
 /* Print Help Message (usage message)                                    */

@@ -1,6 +1,15 @@
 #include "specialInstructions.h"
 
 /* ============================================================================= */
+/* Define macro to taint a register using thread_ctx_ptr and GPR from libdft     */
+/* ============================================================================= */
+#define TAINT_TAG_REG(ctx, taint_gpr, t0, t1, t2, t3) do { \
+tag_t _tags[4] = {t0, t1, t2, t3}; \
+thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); \
+addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
+} while (0)
+
+/* ============================================================================= */
 /* Define macro to check the instruction address and check if is program code    */
 /* ============================================================================= */
 #define CHECK_EIP_ADDRESS(eip_address) do { \
@@ -78,10 +87,11 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	std::string diassembled_ins = INS_Disassemble(ins);
 	// Initialize registries for possible IARG_PARTIAL_CONTEXT
 	REGSET regsIn, regsOut;
+	// Get instruction address
+	ADDRINT curEip = INS_Address(ins);
 	// If "cpuid" instruction (log call with relevant registers and alter values to avoid VM/sandbox detection)
 	if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "cpuid") || diassembled_ins.find("cpuid") != std::string::npos) {
-		// Insert a pre-call before cpuid to log the instruction and get the EAX parameter (category of information)
-		ADDRINT curEip = INS_Address(ins);
+		// Insert a pre-call before cpuid to get the EAX register
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::CpuidCalled,
 			IARG_INST_PTR,
@@ -97,30 +107,15 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
 	else if (INS_IsRDTSC(ins) || diassembled_ins.find("rdtsc") != std::string::npos) {
-		ADDRINT curEip = INS_Address(ins);
-		// Insert a post-call to alter edx register (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
-		// Specify IARG_RETURN_REGS and REG_GDX to write on a specific return register (rdtsc result)
-		INS_InsertCall(
-			ins,
-			IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValueEdx,
-			IARG_CONTEXT,
+		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
+		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValues,
+			IARG_INST_PTR,
+			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
 			IARG_ADDRINT, curEip,
-			IARG_RETURN_REGS,
-			REG_GDX,
-			IARG_END);
-		// Insert a post-call to alter eax register (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
-		// Specify IARG_RETURN_REGS and REG_GAX to write on a specific return register (rdtsc result)
-		INS_InsertCall(ins,
-			IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValueEax,
-			IARG_CONTEXT,
-			IARG_ADDRINT, curEip,
-			IARG_RETURN_REGS,
-			REG_GAX,
 			IARG_END);
 	}
 	// if "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "int 0x2d") || diassembled_ins.find("int 0x2d") != std::string::npos) {
-		ADDRINT curEip = INS_Address(ins);
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::Int2dCalled,
 				        IARG_CONTEXT,
 						IARG_ADDRINT, curEip,
@@ -129,7 +124,6 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	// if "in eax, dx" instruction (log and alter values to avoid VMWare detection
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || diassembled_ins.find("in eax, dx") != std::string::npos) {
 		// Insert a post-call to alter ebx register ('in eax, dx' result) in case of 'in eax, dx' instruction (avoid VMWare detection)
-		ADDRINT curEip = INS_Address(ins);
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
@@ -140,7 +134,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 }
 
 /* ===================================================================== */
-/* Function to handle and log the cpuid instruction                      */
+/* Function to handle the cpuid instruction                              */
 /* ===================================================================== */
 void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT cur_eip) {
 	// Get class instance to access objects
@@ -158,57 +152,58 @@ void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT 
 /* ===================================================================== */
 void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
+	std::cerr << "\n" << std::endl;
+	std::cerr << cur_eip << std::endl;
+
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Get cpuid results (EBX, ECX, EDX)
 	ADDRINT _ebx, _ecx, _edx;
-	PIN_GetContextRegval(ctxt, REG_GDX, reinterpret_cast<UINT8*>(&_edx));
 	PIN_GetContextRegval(ctxt, REG_GBX, reinterpret_cast<UINT8*>(&_ebx));
 	PIN_GetContextRegval(ctxt, REG_GCX, reinterpret_cast<UINT8*>(&_ecx));
+	PIN_GetContextRegval(ctxt, REG_GDX, reinterpret_cast<UINT8*>(&_edx));
 	// EAX = 1 -> processor info and feature bits in ECX
 	if (classHandler->cpuid_eax == 1) {
 		UINT32 mask = 0xFFFFFFFFULL;
 		_ecx &= (mask >> 1);
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
 	}
 	// EAX >= 0x40000000 && EAX <= 0x400000FF -> reserved cpuid levels for Intel and AMD to provide an interface to pass information from the hypervisor to the guest (VM)
 	else if (classHandler->cpuid_eax >= 0x40000000 && classHandler->cpuid_eax <= 0x400000FF) {
 		// Set the registers to value 0 unsigned long long
-		_ecx = 0x0ULL;
 		_ebx = 0x0ULL;
+		_ecx = 0x0ULL;
 		_edx = 0x0ULL;
+		TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
 	}
 	// Change cpuid results (EBX, ECX, EDX)
-	PIN_SetContextReg(ctxt, REG_GCX, _ecx);
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);
+	PIN_SetContextReg(ctxt, REG_GCX, _ecx);
 	PIN_SetContextReg(ctxt, REG_GDX, _edx);
 }
 
 /* ===================================================================== */
-/* Utility function to alter edx (rdtsc result) in case of rdtsc       */
+/* Function to handle the rdtsc instruction                              */
 /* ===================================================================== */
-ADDRINT SpecialInstructionsHandler::AlterRdtscValueEdx(const CONTEXT* ctxt, ADDRINT cur_eip) {
-	// CHECK_EIP_ADDRESS(cur_eip);
-	ADDRINT result = 0;
-	// Alter the result timer (rdtsc result)
-	result = setTimer(ctxt, false);
-	// Return changed value (unused for the moment)
-	return result;
+void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
+	CHECK_EIP_ADDRESS(cur_eip);
+	// Handle and bypass the instruction
+	State::globalState* gs = State::getGlobalState();
+	gs->_timeInfo._edx = (gs->_timeInfo._edx_eax & 0xffffffff00000000ULL) >> 32; // most significant 32
+	gs->_timeInfo._edx_eax += gs->_timeInfo.sleepMs; //add to result ms of previous sleep call
+	gs->_timeInfo._eax = gs->_timeInfo._edx_eax & 0x00000000ffffffffULL; // less significant 32
+	gs->_timeInfo._edx_eax += 30;
+	gs->_timeInfo.sleepMs = 0;
+	PIN_SetContextReg(ctxt, REG_GAX, gs->_timeInfo._eax);
+	PIN_SetContextReg(ctxt, REG_GDX, gs->_timeInfo._edx);
+	// Taint the registers
+	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+	TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
 }
-
 /* ===================================================================== */
-/* Utility function to alter eaxrdtsc result) in case of rdtsc           */
-/* ===================================================================== */
-ADDRINT SpecialInstructionsHandler::AlterRdtscValueEax(const CONTEXT* ctxt, ADDRINT cur_eip) {
-	// CHECK_EIP_ADDRESS(cur_eip);
-	ADDRINT result = 0;
-	// Alter the result timer (rdtsc result)
-	result = setTimer(ctxt, true);
-	// Return changed value (unused for the moment)
-	return result;
-}
-
-/* ===================================================================== */
-/* Function to handle the int 2d and log the instruction                 */
+/* Function to handle the int 2d instruction                             */
 /* ===================================================================== */
 void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
@@ -220,7 +215,7 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_ei
 }
 
 /* ===================================================================== */
-/* Function to handle and log the 'in eax, dx' instruction               */
+/* Function to handle the 'in eax, dx' instruction                       */
 /* ===================================================================== */
 void SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
@@ -229,33 +224,6 @@ void SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx(CONTEXT* ctxt, ADDRI
 	// Change return value (ebx) of the instruction 'in eax, dx'
 	ADDRINT _ebx = 0;
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);
-	// TAINT EAX OR EBX
-}
-
-/* ===================================================================== */
-/* Utility function to alter the timer from the rdtsc results            */
-/* ===================================================================== */
-ADDRINT SpecialInstructionsHandler::setTimer(const CONTEXT* ctxt, bool isEax) {
-	static UINT64 Timer = 0;
-	UINT64 result = 0;
-
-	// obtain the registers when the timer is 0, else increment it by 100
-	if (Timer == 0) {
-		ADDRINT edx = (ADDRINT)PIN_GetContextReg(ctxt, REG_GDX);
-		ADDRINT eax = (ADDRINT)PIN_GetContextReg(ctxt, REG_GAX);
-		Timer = (UINT64(edx) << 32) | eax;
-	}
-	else {
-		Timer += 100;
-	}
-
-	// shift registers to alter the result
-	if (isEax) {
-		result = (Timer << 32) >> 32;
-	}
-	else {
-		result = (Timer) >> 32;
-	}
-	// return changed timer (unused for the moment)
-	return (ADDRINT)result;
+	// Taint the registers
+	TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
 }

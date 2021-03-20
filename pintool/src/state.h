@@ -86,3 +86,4 @@ extern State::apiOutputs _apiOutputs;
 /* Update structure that store global objects                            */
 /* ===================================================================== */
 #define FetchGlobalState	State::globalState* gs = &_globalState;
+#define FetchTimeState		State::timeInfo* tinfo = &_globalState._timeInfo;

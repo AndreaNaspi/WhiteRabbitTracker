@@ -285,6 +285,7 @@ VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformat
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	W::PHKEY;
 	State::apiOutputs* gs = State::getApiOutputs();
 	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
 }

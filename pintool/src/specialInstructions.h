@@ -5,6 +5,10 @@
 #include "ExceptionHandler.h"
 #include "pin.H"
 #include "winheaders.h"
+#include "libdft/libdft_config.h"
+#include "libdft/bridge.h"
+#include "libdft/libdft_api.h"
+#include "libdft/tagmap.h"
 
 #include <iostream>
 #include <fstream>
@@ -47,11 +51,9 @@ public:
 	static void AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip);
 
 	/* ===================================================================== */
-	/* Utility functionts to alter edx and eax (rdtsc results) in case of    */
-	/* rdtsc instruction (avoid VM/Sandbox detection)                        */
+	/* Function to handle the rdtsc instruction                              */
 	/* ===================================================================== */
-	static ADDRINT AlterRdtscValueEdx(const CONTEXT* ctxt, ADDRINT cur_eip);
-	static ADDRINT AlterRdtscValueEax(const CONTEXT* ctxt, ADDRINT cur_eip);
+	static void AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip);
 
 	/* ===================================================================== */
 	/* Function to handle the int 2d and log the instruction                 */
@@ -83,11 +85,6 @@ protected:
 	/* Utility function to compare two strings (compare instruction name)    */
 	/* ===================================================================== */
 	bool isStrEqualI(std::string string1, std::string string2);
-
-	/* ===================================================================== */
-	/* Utility function to alter the timer from the rdtsc results            */
-	/* ===================================================================== */
-	static ADDRINT setTimer(const CONTEXT* ctxt, bool isEax);
 
 private: 
 	/* ===================================================================== */

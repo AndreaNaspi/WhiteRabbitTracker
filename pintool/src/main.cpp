@@ -45,7 +45,14 @@ VOID ImageLoad(IMG Image, VOID *v) {
 	// Add the module to the current process
 	pInfo.addModule(Image);
 	// Insert the current image to the interval tree
+	ADDRINT imgStart = IMG_LowAddress(Image);
+	ADDRINT imgEnd = IMG_HighAddress(Image);
+	std::cerr << IMG_Name(Image) << std::endl;
+	std::cerr << imgStart << std::endl;
+	std::cerr << imgEnd << std::endl;
 	pInfo.addCurrentImageToTree(Image);
+
+
 	// Add APIs hooking for the current image
 	Functions::AddHooks(Image);
 }
@@ -59,21 +66,19 @@ VOID ImageUnload(IMG Image, VOID* v) {
 }
 
 /* ===================================================================== */
-/* Function called BEFORE every INSTRUCTION (ins)                        */
+/* Function called BEFORE every TRACE                                    */
 /* ===================================================================== */
 VOID InstrumentInstruction(TRACE trace, VOID *v) {
-	// Check for special instructions (cpuid, rdts, int and in) to install handlers and avoid VM/sandbox detection
-	// specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
-	/* iterators */
+	// Define iterators 
 	BBL bbl;
 	INS ins;
 	xed_iclass_enum_t ins_indx;
 
-	/* traverse all the BBLs in the trace */
+	// Traverse all the BBLs in the trace 
 	for (bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-		/* traverse all the instructions in the BBL */
+		// Traverse all the instructions in the BBL 
 		for (ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-			// Check for special instructions (cpuid, rdts, int and in) to install handlers and avoid VM/sandbox detection
+			// Check for special instructions (cpuid, rdtsc, int and in) to avoid VM/sandbox detection and taint memory
 			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
 			// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
 			/*
@@ -273,7 +278,7 @@ VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *) {
 /* ===================================================================== */
 /* Function to handle the exceptions (anti-DBI checks)                   */
 /* ===================================================================== */
-EXCEPT_HANDLING_RESULT CONTEXT_InternalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v) {
+EXCEPT_HANDLING_RESULT internalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v) {
 	// Handle single-step exception
 	if (pExceptInfo->GetExceptCode() == EXCEPTCODE_DBG_SINGLE_STEP_TRAP) {
 		ExceptionHandler *eh = ExceptionHandler::getInstance();
@@ -312,6 +317,9 @@ int main(int argc, char * argv[]) {
 		return Usage();
 	}
 
+	// Initialize global state informations
+	State::init();
+
 	// Open output file using the logging module (API tracing)
 	logInfo.init(KnobOutputFile.Value());
 
@@ -342,7 +350,7 @@ int main(int argc, char * argv[]) {
 	pInfo.init(app_name);
 
 	// Register exception control flow
-	PIN_AddInternalExceptionHandler(CONTEXT_InternalExceptionHandler, NULL);
+	PIN_AddInternalExceptionHandler(internalExceptionHandler, NULL);
 
 	// Initialize SpecialInstructions (to handle special instructions) object with related modules (processInfo and logInfo)
 	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
@@ -354,8 +362,8 @@ int main(int argc, char * argv[]) {
 	// Register function to be called for evenry unload module (remove image from interval tree)
 	IMG_AddUnloadFunction(ImageUnload, NULL);
 
-	// Register function to be called BEFORE every INSTRUCTION (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
-	// INS_AddInstrumentFunction(InstrumentInstruction, NULL);
+	// Register function to be called BEFORE every TRACEA (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
+	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID *)0);
 
 	// Register context changes
 	PIN_AddContextChangeFunction(OnCtxChange, NULL);
@@ -366,7 +374,6 @@ int main(int argc, char * argv[]) {
 	// Register thread end evenet to destroy libdft thread context
 	PIN_AddThreadFiniFunction(OnThreadFini, NULL);
 
-	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID *)0);
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {
 		std::cerr << "Error during libdft initialization!" << std::endl;
