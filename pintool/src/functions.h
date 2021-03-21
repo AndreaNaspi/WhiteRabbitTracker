@@ -55,9 +55,15 @@ VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer);
 VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo);
 VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp);
-VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
+VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
+VOID SetTimerEntry(W::UINT* time);
+VOID SetTimerExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
+VOID WaitForSingleObjectEntry(W::DWORD *time);
+VOID WaitForSingleObjectExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
+VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
+VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 
 /* ===================================================================== */
 /* INSTRUCTION HOOKS (taint sinks)                                       */
@@ -71,6 +77,11 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
 #define MAX_HOOK_FUNCTIONS_INDEX	128
 #define MAX_MAC_ADDRESS_SIZE		50
 #define MAX_GETPROCADDR_ORDINAL		0x200
+#define BP_NUMCORES		            4
+#define BP_MINDISKGB                1073741824000 // 1000 GB
+#define BP_MINRAMGB                 4294967296 // 4 GB
+#define BP_TIMER                    150 // milliseconds
+#define BP_ICMP_ECHO	            200 // milliseconds
 
 /* ===================================================================== */
 /* Function hooking identifiers                                          */
@@ -84,8 +95,9 @@ enum {
 	GETDISKFREESPACE_INDEX,
 	GLOBALMEMORYSTATUS_INDEX,
 	GETSYSTEMINFO_INDEX,
+	GETCURSORPOS_INDEX, 
 	GETTICKCOUNT_INDEX,
-	GETUSERNAME_INDEX,
-	GETCURSORPOS_INDEX,
-	FINDFIRSTNEXTFILE_INDEX
+	SETTIMER_INDEX,
+	WAITOBJ_INDEX,
+	ICMPECHO_INDEX
 };

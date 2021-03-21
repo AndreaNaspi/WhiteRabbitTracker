@@ -58,22 +58,28 @@ namespace Functions {
 	/* Initialization function to define API map                             */
 	/* ===================================================================== */
 	void Init() {
-		// Define API map
+		// Debugger API hooks
 		fMap.insert(std::pair<std::string, int>("IsDebuggerPresent", ISDEBUGGERPRESENT_INDEX));
 		fMap.insert(std::pair<std::string, int>("CheckRemoteDebuggerPresent", CHECKREMOTEDEBUGGERPRESENT_INDEX));
+		// Processes API hooks
 		fMap.insert(std::pair<std::string, int>("EnumProcesses", ENUMPROCESSES_INDEX));
 		fMap.insert(std::pair<std::string, int>("K32EnumProcesses", ENUMPROCESSES_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32Next", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32FirstW", PROCESS32FIRSTNEXTW_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXTW_INDEX));
+		// Hardware API hooks (disk/memory information, CPU tick count, mouse cursor position)
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceEx", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExA", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExW", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GlobalMemoryStatusEx", GLOBALMEMORYSTATUS_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetSystemInfo", GETSYSTEMINFO_INDEX));
-		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
+		// Time API hooks
+		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
+		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
+		fMap.insert(std::pair<std::string, int>("WaitForSingleObject", WAITOBJ_INDEX));
+		fMap.insert(std::pair<std::string, int>("IcmpSendEcho", ICMPECHO_INDEX));
 
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
 
@@ -103,29 +109,26 @@ namespace Functions {
 
 				// Switch-case over possible APIs described in the API map
 				switch (index) {
-					// API IsDebuggerPresent
 					case ISDEBUGGERPRESENT_INDEX:
-						// Add hooking with IPOINT_AFTER to retrieve taint the EAX register on output
+						// Add hooking with IPOINT_AFTER to taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IsDebuggerPresentExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_EAX,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API CheckRemoteDebuggerPresent 
 					case CHECKREMOTEDEBUGGERPRESENT_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve pbDebuggerPresent)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)CheckRemoteDebuggerPresentEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
 							IARG_END);
-						// Add hooking with IPOINT_AFTER to the nemory on output
+						// Add hooking with IPOINT_AFTER to taint the nemory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)CheckRemoteDebuggerPresentExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_EAX,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API EnumProcesses and K32Enumprocesses
 					case ENUMPROCESSES_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve process array and returned bytes)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)EnumProcessesEntry,
@@ -138,7 +141,6 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API PRocess32First and Process32Next
 					case PROCESS32FIRSTNEXT_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve process informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
@@ -151,7 +153,6 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API PRocess32FirstW and Process32NextW
 					case PROCESS32FIRSTNEXTW_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve process informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
@@ -164,7 +165,6 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API GetDiskFreeSpace
 					case GETDISKFREESPACE_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve disk informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetDiskFreeSpaceEntry,
@@ -178,7 +178,6 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API GlobalMemoryStatus
 					case GLOBALMEMORYSTATUS_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve memory informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GlobalMemoryStatusEntry,
@@ -190,7 +189,6 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API GetSystemInfo
 					case GETSYSTEMINFO_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve system informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetSystemInfoEntry,
@@ -202,16 +200,6 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
-					// API GetTickCount
-					case GETTICKCOUNT_INDEX:
-						// Add hooking with IPOINT_AFTER to retrieve the API output
-						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetTickCountExit,
-							IARG_CONTEXT,
-							IARG_REG_VALUE, REG_EAX,
-							IARG_REG_VALUE, REG_STACK_PTR,
-							IARG_END);
-						break;
-					// API GetCursorPos
 					case GETCURSORPOS_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve pointer informations)
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetCursorPosEntry,
@@ -223,9 +211,52 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
+					case GETTICKCOUNT_INDEX:
+						// Add hooking with IPOINT_AFTER to taint the EAX register on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetTickCountExit,
+							IARG_CONTEXT,
+							IARG_FUNCRET_EXITPOINT_REFERENCE,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case SETTIMER_INDEX:
+						// Add hooking with IPOINT_BEFORE to bypass the timer initialization
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)SetTimerEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 2,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the EAX register on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)SetTimerExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_EAX,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case WAITOBJ_INDEX:
+						// Add hooking with IPOINT_BEFORE to bypass the time-out interval
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)WaitForSingleObjectEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the EAX register on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)WaitForSingleObjectExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_EAX,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case ICMPECHO_INDEX:
+						// Add hooking with IPOINT_BEFORE to bypass the time-out interval
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)IcmpSendEchoEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 5,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 6,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 7,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IcmpSendEchoExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
 					default:
 						break;
-
 				}
 				// Close the routine
 				RTN_Close(rtn);
@@ -241,26 +272,31 @@ VOID taintRegisterEax(CONTEXT* ctx) {
 }
 
 VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Bypass API return value
+	ADDRINT _eax = 0;
+	PIN_SetContextReg(ctx, REG_GAX, _eax);
+	// Taint source: API return value
 	taintRegisterEax(ctx);
 }
 
 VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent) {
-	// store the pbDebuggerPresent into global variables
+	// Store the pbDebuggerPresent into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
 	gs->lpbDebuggerPresent = pbDebuggerPresent;
 }
 
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Bypass API return value
 	State::apiOutputs* gs = State::getApiOutputs();
+	*gs->lpbDebuggerPresent = 0;
+	// Taint source: API return value
 	addTaintMemory(*gs->lpbDebuggerPresent, sizeof(W::BOOL), TAINT_COLOR_1, true, "CheckRemoteDebuggerPresent");
 }
 
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray) {
-	// store the lpProcessesArray and bytes variable into global variables
+	// Store the lpProcessesArray and bytes variable into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
 	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
 	pc->lpidProcesses = pointerToProcessesArray;
@@ -268,8 +304,8 @@ VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToByte
 }
 
 VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Taint source: API return value
 	State::apiOutputs* gs = State::getApiOutputs();
 	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
 	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses;
@@ -317,10 +353,23 @@ VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRI
 }
 
 VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);	
+	// Bypass API return value
 	State::apiOutputs* gs = State::getApiOutputs();
 	State::apiOutputs::diskFreeSpaceInformations *pc = &gs->_diskFreeSpaceInformations;
+	W::PULARGE_INTEGER freeBytesAvailableToCaller = (W::PULARGE_INTEGER)*pc->freeBytesAvailableToCaller;
+	W::PULARGE_INTEGER totalNumberOfBytes = (W::PULARGE_INTEGER)*pc->totalNumberOfBytes;
+	W::PULARGE_INTEGER totalNumberOfFreeBytes = (W::PULARGE_INTEGER)*pc->totalNumberOfFreeBytes;
+	if (freeBytesAvailableToCaller != NULL) {
+		freeBytesAvailableToCaller->QuadPart = BP_MINDISKGB;
+	}
+	if (totalNumberOfBytes != NULL) {
+		totalNumberOfBytes->QuadPart = BP_MINDISKGB;
+	}
+	if (totalNumberOfFreeBytes != NULL) {
+		totalNumberOfFreeBytes->QuadPart = BP_MINDISKGB;
+	}
+	// taint source: API return value
 	addTaintMemory(*pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
 	addTaintMemory(*pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
 	addTaintMemory(*pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
@@ -333,45 +382,116 @@ VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer) {
 }
 
 VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Bypass API return value
 	State::apiOutputs* gs = State::getApiOutputs();
+	W::LPMEMORYSTATUSEX memoryInformations = (W::LPMEMORYSTATUSEX)*gs->lpMemoryInformations;
+	memoryInformations->ullTotalPhys = BP_MINRAMGB;
+	// Taint source: API return value
 	addTaintMemory(*gs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
 }
 
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo) {
-	// store system informations into global variables
+	// Store system informations into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
 	gs->lpSystemInformations = pointerToLpSystemInfo;
 }
 
 VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Bypass API return value
 	State::apiOutputs* gs = State::getApiOutputs();
 	W::LPSYSTEM_INFO systemInfoStructure = (W::LPSYSTEM_INFO) *gs->lpSystemInformations;
 	W::DWORD_PTR* dwActiveProcessorMask = &systemInfoStructure->dwActiveProcessorMask; // inner-pointer dwActiveProcessorMask
+	systemInfoStructure->dwNumberOfProcessors = BP_NUMCORES;
+	// Taint source: API return value
 	addTaintMemory(*gs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
 	addTaintMemory((ADDRINT)dwActiveProcessorMask, sizeof(W::DWORD), TAINT_COLOR_1, true, "GetSystemInfo dwActiveProcessorMask");
 }
 
-VOID GetTickCountExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
-	// taint source: API return value
-	CHECK_ESP_RETURN_ADDRESS(esp);
-	taintRegisterEax(ctx);
-}
-
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint) {
-	// store mouse pointer informations into global variables
+	// Store mouse pointer informations into global variables
 	State::apiOutputs* gs = State::getApiOutputs();
 	gs->lpCursorPointerInformations = pointerToLpPoint;
 }
 
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Bypass API return value
 	State::apiOutputs* gs = State::getApiOutputs();
+	W::LPPOINT point = (W::LPPOINT)*gs->lpCursorPointerInformations;
+	point->x = rand() % 500;
+	point->y = rand() % 500;
+	// Taint source: API return value
 	addTaintMemory(*gs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+}
+
+VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Bypass API return value
+	State::globalState* gs = State::getGlobalState();
+	gs->_timeInfo.tick += 30 + gs->_timeInfo.sleepMsTick;
+	gs->_timeInfo.sleepMsTick = 0;
+	*ret = gs->_timeInfo.tick;
+	// Taint source: API return value
+	taintRegisterEax(ctx);
+}
+
+VOID SetTimerEntry(W::UINT* time) {
+	if (*time == INFINITE) 
+		return; 
+	// Bypass the sleep duration 
+	State::globalState* gs = State::getGlobalState();
+	gs->_timeInfo.sleepMs += *time;
+	gs->_timeInfo.sleepMsTick += *time;
+	*time = BP_TIMER;
+
+}
+
+VOID SetTimerExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Taint source: API return value
+	taintRegisterEax(ctx);
+}
+
+VOID WaitForSingleObjectEntry(W::DWORD *time) {
+	if (*time == INFINITE) 
+		return;
+	// Bypass the time-out interval
+	State::globalState* gs = State::getGlobalState();
+	gs->_timeInfo.sleepMs += *time;
+	gs->_timeInfo.sleepMsTick += *time;
+	*time = BP_TIMER;
+}
+
+VOID WaitForSingleObjectExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Taint source: API return value
+	taintRegisterEax(ctx);
+}
+
+VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time) {
+	if (*time == INFINITE)
+		return;
+	// Bypass the time-out interval
+	State::globalState* gs = State::getGlobalState();
+	gs->_timeInfo.sleepMs += *time;
+	gs->_timeInfo.sleepMsTick += *time;
+	*time = BP_ICMP_ECHO;
+	// Store reply buffer and reply size into global variables
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::icmpSendEchoInformations *icmpInformations = &apiOutputs->_icmpSendEchoInformations;
+	icmpInformations->replyBuffer = replyBuffer;
+	icmpInformations->replySize = replySize;
+}
+
+VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Taint source: API return value
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::icmpSendEchoInformations *icmpInformations = &apiOutputs->_icmpSendEchoInformations;
+	taintRegisterEax(ctx);
+	addTaintMemory(*icmpInformations->replyBuffer, *icmpInformations->replySize, TAINT_COLOR_1, true, "IcmpSendEcho");
 }
 
 /* END OF API HOOKS */

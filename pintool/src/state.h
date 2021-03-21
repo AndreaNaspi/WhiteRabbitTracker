@@ -54,6 +54,10 @@ namespace State {
 			ADDRINT* totalNumberOfBytes;
 			ADDRINT* totalNumberOfFreeBytes;
 		} _diskFreeSpaceInformations;
+		struct icmpSendEchoInformations {
+			ADDRINT* replyBuffer;
+			ADDRINT* replySize;
+		} _icmpSendEchoInformations;
 	};
 
 	/* ===================================================================== */
