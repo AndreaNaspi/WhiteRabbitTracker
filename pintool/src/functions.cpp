@@ -2,6 +2,7 @@
 #include "functions.h"
 #include "types.h"
 #include "process.h"
+#include "helper.h"
 #include "HiddenElements.h"
 #include <string>
 #include <iostream>
@@ -67,6 +68,8 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("K32EnumProcesses", ENUMPROCESSES_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32Next", PROCESS32FIRSTNEXT_INDEX));
+		fMap.insert(std::pair<std::string, int>("Process32FirstA", PROCESS32FIRSTNEXT_INDEX));
+		fMap.insert(std::pair<std::string, int>("Process32NextA", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32FirstW", PROCESS32FIRSTNEXTW_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXTW_INDEX));
 		// Hardware API hooks (disk/memory information, CPU tick count, mouse cursor position)
@@ -156,7 +159,7 @@ namespace Functions {
 						break;
 					case PROCESS32FIRSTNEXTW_INDEX:
 						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve process informations)
-						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextEntry,
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)Process32FirstNextWEntry,
 							IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
 							IARG_FUNCARG_ENTRYPOINT_VALUE, 1,
 							IARG_END);
@@ -321,28 +324,42 @@ VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformat
 }
 
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
-	W::PHKEY;
 	State::apiOutputs* gs = State::getApiOutputs();
+	// Bypass EXE file name
+	W::LPPROCESSENTRY32 processInfoStructure = (W::LPPROCESSENTRY32) gs->lpProcessInformations;
+	W::CHAR* szExeFile = processInfoStructure->szExeFile;
+	char outputExeFileName[MAX_PATH];
+	GET_STR_TO_UPPER(szExeFile, outputExeFileName, MAX_PATH);
+	std::cerr << "RTN INSTRUMENTATION " << outputExeFileName << std::endl;
+	if (HiddenElements::shouldHideProcessStr(outputExeFileName)) {
+		const char** _path = (const char**)processInfoStructure->szExeFile;
+		*_path = BP_FAKEPROCESS;
+	}
+	// taint source: API return value
 	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
 }
 
+VOID Process32FirstNextWEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
+	// store processes array into global variables
+	State::apiOutputs* gs = State::getApiOutputs();
+	gs->lpProcessInformationsW = pointerToProcessInformations;
+}
+
 VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
-	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
-	// Bypass exe file name
-	/*
-	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformations;
+	// Bypass EXE file name
+	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformationsW;
 	W::WCHAR* szExeFile = processInfoStructure->szExeFile;
-	char output[MAX_PATH];
-	sprintf(output, "%ls", szExeFile);
-	std::cerr << output << std::endl;
-	const wchar_t** _path = (const wchar_t**)processInfoStructure->szExeFile;
-	*_path = L"abc.exe";
-	*/
-	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
+	char outputExeFileName[MAX_PATH];
+	GET_WSTR_TO_UPPER(szExeFile, outputExeFileName, MAX_PATH);
+	if (HiddenElements::shouldHideProcessStr(outputExeFileName)) {
+		const wchar_t** _path = (const wchar_t**)processInfoStructure->szExeFile;
+		*_path = BP_FAKEPROCESSW;
+	}
+	// taint source: API return value
+	addTaintMemory(gs->lpProcessInformationsW, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {

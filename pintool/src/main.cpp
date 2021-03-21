@@ -21,6 +21,8 @@ ProcessInfo pInfo;
 LoggingInfo logInfo;
 // Object that contains useful functions for special instructions instrumentation (cpuid, rdtsc)
 SpecialInstructionsHandler* specialInstructionsHandlerInfo;
+// Define TLS key
+TLS_KEY tls_key = INVALID_TLS_KEY;
 
 /* ================================================================== */
 /* Knobs definitions                                                  */
@@ -74,7 +76,8 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 			// Check for special instructions (cpuid, rdtsc, int and in) to avoid VM/sandbox detection and taint memory
 			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
 			// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
-			/*if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
+			/*
+			if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
 				// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
 				// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
 				// hint: remember to use IARG_END (end argument list)!!
@@ -87,7 +90,8 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 					IARG_ADDRINT, curEip,
 					IARG_END
 				);
-			}*/
+			}
+			*/
 		}
 	}
 }
@@ -242,6 +246,8 @@ static void OnCtxChange(THREADID threadIndex, CONTEXT_CHANGE_REASON reason, cons
 /* for libdft                                                            */
 /* ===================================================================== */
 VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
+	// TLS handling
+	SYSHOOKING::SetTLSKey(tid);
 	// Initialize libdft thread context
 	thread_ctx_t *thread_ctx = libdft_thread_start(ctxt);
 	// Setup thread informations
@@ -308,11 +314,14 @@ int main(int argc, char * argv[]) {
 		return Usage();
 	}
 
+	// Open output file using the logging module (API tracing)
+	logInfo.init(KnobOutputFile.Value());
+
 	// Initialize global state informations
 	State::init();
 
-	// Open output file using the logging module (API tracing)
-	logInfo.init(KnobOutputFile.Value());
+	// Initialize elements to be hidden
+	HiddenElements::initializeHiddenStuff();
 
 	// Remove old file related to taint analysis
 	W::WIN32_FIND_DATA ffd; 
@@ -340,24 +349,11 @@ int main(int argc, char * argv[]) {
 	// Initialize ProcessInfo object 
 	pInfo.init(app_name);
 
-	// Register exception control flow
-	PIN_AddInternalExceptionHandler(internalExceptionHandler, NULL);
-
-	// Initialize SpecialInstructions (to handle special instructions) object with related modules (processInfo and logInfo)
-	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
-	specialInstructionsHandlerInfo->init(&pInfo, &logInfo);
-
-	// Register function to be called for every loaded module (populate ProcessInfo object, populate interval tree and add API HOOKING FOR FURTHER TAINT ANALYSIS)
-	IMG_AddInstrumentFunction(ImageLoad, NULL);
-
-	// Register function to be called for evenry unload module (remove image from interval tree)
-	IMG_AddUnloadFunction(ImageUnload, NULL);
-
-	// Register function to be called BEFORE every TRACEA (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
-	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID *)0);
-
 	// Register context changes
 	PIN_AddContextChangeFunction(OnCtxChange, NULL);
+
+	// Register exception control flow
+	PIN_AddInternalExceptionHandler(internalExceptionHandler, NULL);
 
 	// Register thread start evenet to initialize libdft thread context
 	PIN_AddThreadStartFunction(OnThreadStart, NULL);
@@ -365,14 +361,37 @@ int main(int argc, char * argv[]) {
 	// Register thread end evenet to destroy libdft thread context
 	PIN_AddThreadFiniFunction(OnThreadFini, NULL);
 
+	// Initialize SpecialInstructions (to handle special instructions) object with related modules (processInfo and logInfo)
+	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
+	specialInstructionsHandlerInfo->init(&pInfo, &logInfo);
+
+	// Register function to be called BEFORE every TRACE (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
+	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID*)0);
+
+	// Register function to be called for every loaded module (populate ProcessInfo object, populate interval tree and add API HOOKING FOR FURTHER TAINT ANALYSIS)
+	IMG_AddInstrumentFunction(ImageLoad, NULL);
+
+	// Register function to be called for evenry unload module (remove image from interval tree)
+	IMG_AddUnloadFunction(ImageUnload, NULL);
+
+	// Initialize Functions (to handle API hooking and taint hooking) object 
+	Functions::Init();
+
+	// Obtain a TLS key
+	tls_key = PIN_CreateThreadDataKey(NULL);
+	if (tls_key == INVALID_TLS_KEY) {
+		std::cerr << "cannot initialize TLS" << std::endl;;
+		PIN_ExitProcess(1);
+	}
+
+	// Register system hooking
+	SYSHOOKING::Init();
+
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {
 		std::cerr << "Error during libdft initialization!" << std::endl;
 		return EXIT_FAILURE;
 	}
-
-	// Initialize Functions (to handle API hooking and taint hooking) object 
-	Functions::Init();
 
 	// Welcome message :)
 	std::cerr << "===============================================" << std::endl;

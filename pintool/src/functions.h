@@ -48,6 +48,7 @@ VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToByte
 VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp);
 VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations);
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp);
+VOID Process32FirstNextWEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations);
 VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
 VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp);
@@ -82,6 +83,8 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 #define BP_MINRAMGB                 4294967296 // 4 GB
 #define BP_TIMER                    150 // milliseconds
 #define BP_ICMP_ECHO	            200 // milliseconds
+#define BP_FAKEPROCESS              "abc.exe"
+#define BP_FAKEPROCESSW             L"abc.exe"
 
 /* ===================================================================== */
 /* Function hooking identifiers                                          */

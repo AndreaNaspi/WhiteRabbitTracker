@@ -152,7 +152,7 @@ void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT 
 /* Utility function to alter EBX, ECX, EDX (cpuid results)               */
 /* ===================================================================== */
 void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
-	CHECK_EIP_ADDRESS(cur_eip);
+	// CHECK_EIP_ADDRESS(cur_eip);
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Get cpuid results (EBX, ECX, EDX)
@@ -216,7 +216,7 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_ei
 /* Function to handle the 'in eax, dx' instruction                       */
 /* ===================================================================== */
 void SpecialInstructionsHandler::InEaxDxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip) {
-	CHECK_EIP_ADDRESS(cur_eip);
+	// CHECK_EIP_ADDRESS(cur_eip);
 	// Get class instance to access objects
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Change return value (ebx) of the instruction 'in eax, dx'

@@ -8,6 +8,9 @@
 #include "LoggingInfo.h"
 #include "SpecialInstructions.h"
 #include "functions.h"
+#include "HiddenElements.h"
+#include "helper.h"
+#include "syshooking.h"
 using std::cerr;
 using std::ofstream;
 using std::ios;
