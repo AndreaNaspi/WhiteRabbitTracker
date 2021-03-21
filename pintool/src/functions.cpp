@@ -255,6 +255,7 @@ namespace Functions {
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
+						break;
 					default:
 						break;
 				}
@@ -330,8 +331,8 @@ VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
 	// taint source: API return value
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	State::apiOutputs* gs = State::getApiOutputs();
+	// Bypass exe file name
 	/*
-	// OBTAIN EXE FILE NAME
 	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformations;
 	W::WCHAR* szExeFile = processInfoStructure->szExeFile;
 	char output[MAX_PATH];
