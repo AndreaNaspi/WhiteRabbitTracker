@@ -331,7 +331,6 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	W::CHAR* szExeFile = processInfoStructure->szExeFile;
 	char outputExeFileName[MAX_PATH];
 	GET_STR_TO_UPPER(szExeFile, outputExeFileName, MAX_PATH);
-	std::cerr << "RTN INSTRUMENTATION " << outputExeFileName << std::endl;
 	if (HiddenElements::shouldHideProcessStr(outputExeFileName)) {
 		const char** _path = (const char**)processInfoStructure->szExeFile;
 		*_path = BP_FAKEPROCESS;
