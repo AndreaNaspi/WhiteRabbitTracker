@@ -44,6 +44,9 @@
     <ClCompile Include="src\HiddenElements.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
+    <ClCompile Include="src\helper.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source files">
@@ -113,6 +116,9 @@
     </ClInclude>
     <ClInclude Include="src\main.h" />
     <ClInclude Include="src\HiddenElements.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\helper.h">
       <Filter>Header files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -296,6 +296,7 @@
   <ItemGroup>
     <ClCompile Include="src\exceptionHandler.cpp" />
     <ClCompile Include="src\functions.cpp" />
+    <ClCompile Include="src\helper.cpp" />
     <ClCompile Include="src\HiddenElements.cpp" />
     <ClCompile Include="src\itree.cpp" />
     <ClCompile Include="src\libdft\bridge.cpp" />
@@ -320,6 +321,7 @@
   <ItemGroup>
     <ClInclude Include="src\exceptionHandler.h" />
     <ClInclude Include="src\functions.h" />
+    <ClInclude Include="src\helper.h" />
     <ClInclude Include="src\HiddenElements.h" />
     <ClInclude Include="src\itree.h" />
     <ClInclude Include="src\libdft\array.hpp" />

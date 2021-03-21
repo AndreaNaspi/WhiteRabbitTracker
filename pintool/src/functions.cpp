@@ -2,6 +2,7 @@
 #include "functions.h"
 #include "types.h"
 #include "process.h"
+#include "HiddenElements.h"
 #include <string>
 #include <iostream>
 
