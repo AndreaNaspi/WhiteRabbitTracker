@@ -65,8 +65,8 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXTW_INDEX));
 		// Hardware API hooks (disk/memory information, CPU tick count, mouse cursor position)
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceEx", GETDISKFREESPACE_INDEX));
-		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExA", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExW", GETDISKFREESPACE_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetDiskFreeSpaceExA", GETDISKFREESPACE_INDEX));
 		fMap.insert(std::pair<std::string, int>("GlobalMemoryStatusEx", GLOBALMEMORYSTATUS_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetSystemInfo", GETSYSTEMINFO_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
@@ -331,7 +331,8 @@ VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
 	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) apiOutputs->lpProcessInformationsW;
 	W::WCHAR* szExeFile = processInfoStructure->szExeFile;
 	char outputExeFileName[MAX_PATH];
-	GET_WSTR_TO_UPPER(szExeFile, outputExeFileName, MAX_PATH);
+	GET_WSTR_TO_UPPER((char*)szExeFile, outputExeFileName, MAX_PATH);
+	std::cerr << outputExeFileName << std::endl;
 	if (HiddenElements::shouldHideProcessStr(outputExeFileName)) {
 		const wchar_t** _path = (const wchar_t**)processInfoStructure->szExeFile;
 		*_path = BP_FAKEPROCESSW;
