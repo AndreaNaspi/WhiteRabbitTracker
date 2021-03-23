@@ -63,7 +63,7 @@ public:
 	/* ===================================================================== */
 	/* Function to handle and log the 'in eax, dx' instruction               */
 	/* ===================================================================== */
-	static void InEaxDxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip);
+	static void InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip);
 
 protected:
 	/* ===================================================================== */

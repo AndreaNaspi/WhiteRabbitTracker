@@ -32,6 +32,7 @@ namespace State {
 		W::SHORT flagStep;
 		W::BOOL waitForDebugger;
 		itreenode_t* dllRangeITree;
+		ADDRINT cpuid_eax;
 		ADDRINT* pointerToLpidProcess;
 		ADDRINT* pointerToBytesLpidProcess;
 	};
@@ -41,8 +42,8 @@ namespace State {
 	/* ===================================================================== */
 	struct apiOutputs {
 		ADDRINT* lpbDebuggerPresent;
-		ADDRINT lpProcessInformations;
-		ADDRINT lpProcessInformationsW;
+		ADDRINT  lpProcessInformations;
+		ADDRINT  lpProcessInformationsW;
 		ADDRINT* lpCursorPointerInformations;
 		ADDRINT* lpMemoryInformations;
 		ADDRINT* lpSystemInformations;

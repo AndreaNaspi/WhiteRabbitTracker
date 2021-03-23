@@ -1,5 +1,9 @@
 #pragma once
 #include "syshooking.h"
+#include "libdft/libdft_config.h"
+#include "libdft/bridge.h"
+#include "libdft/libdft_api.h"
+#include "libdft/tagmap.h"
 
 // Misc parameters used in the implementation
 #define MAX_HOOK_FUNCTIONS_INDEX	128
@@ -12,8 +16,10 @@
 #define BP_ICMP_ECHO	            200 // milliseconds
 #define BP_FAKEPROCESS              "abc.exe"
 #define BP_FAKEPROCESSW             L"abc.exe"
+#define STR_QSI				        "a"
 #define PATH_BUFSIZE	            512
 
 namespace SYSHOOKS {
-	VOID NtQuerySystemInformation_exit(syscall_t *sc, CONTEXT *ctx, SYSCALL_STANDARD std);
+	VOID NtOpenKey_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
+	VOID NtQuerySystemInformation_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
 }

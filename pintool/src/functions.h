@@ -24,7 +24,7 @@ namespace W {
 #include <WinUser.h>
 #include <Ws2tcpip.h>
 #include <tlhelp32.h>
-#include <debugapi.h> 
+#include <debugapi.h>
 }
 
 namespace Functions {
@@ -41,7 +41,7 @@ namespace Functions {
 /* ===================================================================== */
 /* API HOOKS (taint sources)                                             */
 /* ===================================================================== */
-VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
+VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp);
 VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent);
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray);
@@ -60,9 +60,7 @@ VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
 VOID SetTimerEntry(W::UINT* time);
-VOID SetTimerExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID WaitForSingleObjectEntry(W::DWORD *time);
-VOID WaitForSingleObjectExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
 VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 
@@ -78,6 +76,7 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 #define MAX_HOOK_FUNCTIONS_INDEX	128
 #define MAX_MAC_ADDRESS_SIZE		50
 #define MAX_GETPROCADDR_ORDINAL		0x200
+#define PATH_BUFSIZE                512
 #define BP_NUMCORES		            4
 #define BP_MINDISKGB                1073741824000 // 1000 GB
 #define BP_MINRAMGB                 4294967296 // 4 GB
@@ -95,6 +94,8 @@ enum {
 	ENUMPROCESSES_INDEX,
 	PROCESS32FIRSTNEXT_INDEX,
 	PROCESS32FIRSTNEXTW_INDEX,
+	REGOPENKEYA_INDEX,
+	REGOPENKEYW_INDEX,
 	GETDISKFREESPACE_INDEX,
 	GLOBALMEMORYSTATUS_INDEX,
 	GETSYSTEMINFO_INDEX,
@@ -102,5 +103,6 @@ enum {
 	GETTICKCOUNT_INDEX,
 	SETTIMER_INDEX,
 	WAITOBJ_INDEX,
-	ICMPECHO_INDEX
+	ICMPECHO_INDEX,
+	CLOSEHANDLE_INDEX
 };

@@ -133,7 +133,9 @@ namespace SYSHOOKING {
 	);
 
 	static VOID getNtdllRangesAndWow64Info() {
-		checkCS_callback = checkCallSiteNTDLLWin32;
+		W::BOOL bWow64;
+		W::IsWow64Process((W::HANDLE)(-1), &bWow64);
+		checkCS_callback = (bWow64 != 0) ? checkCallSiteNTDLLWow64 : checkCallSiteNTDLLWin32;
 
 		W::HMODULE image = W::GetModuleHandle("ntdll");
 
@@ -242,7 +244,9 @@ namespace SYSHOOKING {
 	}
 
 	static VOID registerHooks() {
-		// sysExitHooks[lookupIndex("NtQuerySystemInformation")] = &SYSHOOKS::NtQuerySystemInformation_exit;
+		sysExitHooks[lookupIndex("NtOpenKey")] = &SYSHOOKS::NtOpenKey_exit;
+		sysExitHooks[lookupIndex("NtOpenKeyEx")] = &SYSHOOKS::NtOpenKey_exit;
+		sysExitHooks[lookupIndex("NtQuerySystemInformation")] = &SYSHOOKS::NtQuerySystemInformation_exit;
 
 		// Register analysis callbacks for Pin
 		PIN_AddSyscallEntryFunction(&SyscallEntry, NULL);

@@ -35,7 +35,7 @@ VOID ImageUnload(IMG Image, VOID* v);
 /* ===================================================================== */
 /* Function called BEFORE every TRACE                                    */
 /* ===================================================================== */
-VOID InstrumentInstruction(INS ins, VOID *v);
+VOID InstrumentInstruction(TRACE trace, VOID *v);
 
 /* ===================================================================== */
 /* Function called BEFORE the analysis routine to enter critical section */

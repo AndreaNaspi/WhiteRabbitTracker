@@ -38,7 +38,7 @@ bool ExceptionHandler::isPendingException() {
 /* ===================================================================== */
 void ExceptionHandler::raisePendingException(CONTEXT *ctx, THREADID tid, ADDRINT accessAddr) {
 	EXCEPTION_INFO exc;
-	if(this->pending == TRUE) {
+	if (this->pending == TRUE) {
 		// We are interested only in a Windows environment
 		PIN_InitWindowsExceptionInfo(&exc, this->code, accessAddr);
 		// Add 0x1 to get the right address

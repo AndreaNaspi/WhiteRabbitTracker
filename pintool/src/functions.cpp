@@ -8,13 +8,6 @@
 #include <iostream>
 
 /* ===================================================================== */
-/* Define random stapp when we need to fill fields                       */
-/* ===================================================================== */
-#define CHAR_SDI	's'
-#define STR_GUI_1A	"W" 
-#define STR_GUI_1B	"a"
-#define STR_GUI_2	"WantSuppli"
-/* ===================================================================== */
 /* Define taint color                                                    */
 /* ===================================================================== */
 #define TAINT_COLOR_1 0x01
@@ -68,8 +61,6 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("K32EnumProcesses", ENUMPROCESSES_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32First", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32Next", PROCESS32FIRSTNEXT_INDEX));
-		fMap.insert(std::pair<std::string, int>("Process32FirstA", PROCESS32FIRSTNEXT_INDEX));
-		fMap.insert(std::pair<std::string, int>("Process32NextA", PROCESS32FIRSTNEXT_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32FirstW", PROCESS32FIRSTNEXTW_INDEX));
 		fMap.insert(std::pair<std::string, int>("Process32NextW", PROCESS32FIRSTNEXTW_INDEX));
 		// Hardware API hooks (disk/memory information, CPU tick count, mouse cursor position)
@@ -84,7 +75,7 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
 		fMap.insert(std::pair<std::string, int>("WaitForSingleObject", WAITOBJ_INDEX));
 		fMap.insert(std::pair<std::string, int>("IcmpSendEcho", ICMPECHO_INDEX));
-
+		
 		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
 
 		// Define instruction hooking for taint analysis (taint sinks) - control transfer instruction (call, jmp, ret)
@@ -117,7 +108,7 @@ namespace Functions {
 						// Add hooking with IPOINT_AFTER to taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IsDebuggerPresentExit,
 							IARG_CONTEXT,
-							IARG_REG_VALUE, REG_EAX,
+							IARG_FUNCRET_EXITPOINT_REFERENCE,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
@@ -228,23 +219,11 @@ namespace Functions {
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)SetTimerEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 2,
 							IARG_END);
-						// Add hooking with IPOINT_AFTER to taint the EAX register on output
-						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)SetTimerExit,
-							IARG_CONTEXT,
-							IARG_REG_VALUE, REG_EAX,
-							IARG_REG_VALUE, REG_STACK_PTR,
-							IARG_END);
 						break;
 					case WAITOBJ_INDEX:
 						// Add hooking with IPOINT_BEFORE to bypass the time-out interval
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)WaitForSingleObjectEntry,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
-							IARG_END);
-						// Add hooking with IPOINT_AFTER to taint the EAX register on output
-						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)WaitForSingleObjectExit,
-							IARG_CONTEXT,
-							IARG_REG_VALUE, REG_EAX,
-							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
 					case ICMPECHO_INDEX:
@@ -276,34 +255,34 @@ VOID taintRegisterEax(CONTEXT* ctx) {
 	TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 }
 
-VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
+VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
-	ADDRINT _eax = 0;
-	PIN_SetContextReg(ctx, REG_GAX, _eax);
+	*ret = 0;
 	// Taint source: API return value
 	taintRegisterEax(ctx);
 }
 
 VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent) {
 	// Store the pbDebuggerPresent into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpbDebuggerPresent = pbDebuggerPresent;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpbDebuggerPresent = pbDebuggerPresent;
 }
 
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
-	State::apiOutputs* gs = State::getApiOutputs();
-	*gs->lpbDebuggerPresent = 0;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	W::PBOOL debuggerPresent = (W::PBOOL)*apiOutputs->lpbDebuggerPresent;
+	*debuggerPresent = 0;
 	// Taint source: API return value
-	addTaintMemory(*gs->lpbDebuggerPresent, sizeof(W::BOOL), TAINT_COLOR_1, true, "CheckRemoteDebuggerPresent");
+	addTaintMemory(*apiOutputs->lpbDebuggerPresent, sizeof(W::BOOL), TAINT_COLOR_1, true, "CheckRemoteDebuggerPresent");
 }
 
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray) {
 	// Store the lpProcessesArray and bytes variable into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::enumProcessesInformations *pc = &apiOutputs->_enumProcessesInformations;
 	pc->lpidProcesses = pointerToProcessesArray;
 	pc->bytesLpidProcesses = pointerToBytesProcessesArray;
 }
@@ -311,23 +290,23 @@ VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToByte
 VOID EnumProcessesExit(ADDRINT eax, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Taint source: API return value
-	State::apiOutputs* gs = State::getApiOutputs();
-	State::apiOutputs::enumProcessesInformations *pc = &gs->_enumProcessesInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::enumProcessesInformations *pc = &apiOutputs->_enumProcessesInformations;
 	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses;
 	addTaintMemory(*pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
 VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
 	// store processes array into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpProcessInformations = pointerToProcessInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpProcessInformations = pointerToProcessInformations;
 }
 
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
-	State::apiOutputs* gs = State::getApiOutputs();
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
 	// Bypass EXE file name
-	W::LPPROCESSENTRY32 processInfoStructure = (W::LPPROCESSENTRY32) gs->lpProcessInformations;
+	W::LPPROCESSENTRY32 processInfoStructure = (W::LPPROCESSENTRY32) apiOutputs->lpProcessInformations;
 	W::CHAR* szExeFile = processInfoStructure->szExeFile;
 	char outputExeFileName[MAX_PATH];
 	GET_STR_TO_UPPER(szExeFile, outputExeFileName, MAX_PATH);
@@ -336,20 +315,20 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 		*_path = BP_FAKEPROCESS;
 	}
 	// taint source: API return value
-	addTaintMemory(gs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
+	addTaintMemory(apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
 }
 
 VOID Process32FirstNextWEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
-	// store processes array into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpProcessInformationsW = pointerToProcessInformations;
+	// Store processes array into global variables
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpProcessInformationsW = pointerToProcessInformations;
 }
 
 VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
-	State::apiOutputs* gs = State::getApiOutputs();
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
 	// Bypass EXE file name
-	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) gs->lpProcessInformationsW;
+	W::LPPROCESSENTRY32W processInfoStructure = (W::LPPROCESSENTRY32W) apiOutputs->lpProcessInformationsW;
 	W::WCHAR* szExeFile = processInfoStructure->szExeFile;
 	char outputExeFileName[MAX_PATH];
 	GET_WSTR_TO_UPPER(szExeFile, outputExeFileName, MAX_PATH);
@@ -358,13 +337,13 @@ VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
 		*_path = BP_FAKEPROCESSW;
 	}
 	// taint source: API return value
-	addTaintMemory(gs->lpProcessInformationsW, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
+	addTaintMemory(apiOutputs->lpProcessInformationsW, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
 }
 
 VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {
 	// store disk informations into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	State::apiOutputs::diskFreeSpaceInformations *pc = &gs->_diskFreeSpaceInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::diskFreeSpaceInformations *pc = &apiOutputs->_diskFreeSpaceInformations;
 	pc->freeBytesAvailableToCaller = pointerToLpFreeBytesAvailableToCaller;
 	pc->totalNumberOfBytes = pointerToLpTotalNumberOfBytes;
 	pc->totalNumberOfFreeBytes = pointerToLpTotalNumberOfFreeBytes;
@@ -373,8 +352,8 @@ VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRI
 VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);	
 	// Bypass API return value
-	State::apiOutputs* gs = State::getApiOutputs();
-	State::apiOutputs::diskFreeSpaceInformations *pc = &gs->_diskFreeSpaceInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::diskFreeSpaceInformations *pc = &apiOutputs->_diskFreeSpaceInformations;
 	W::PULARGE_INTEGER freeBytesAvailableToCaller = (W::PULARGE_INTEGER)*pc->freeBytesAvailableToCaller;
 	W::PULARGE_INTEGER totalNumberOfBytes = (W::PULARGE_INTEGER)*pc->totalNumberOfBytes;
 	W::PULARGE_INTEGER totalNumberOfFreeBytes = (W::PULARGE_INTEGER)*pc->totalNumberOfFreeBytes;
@@ -395,53 +374,53 @@ VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp) {
 
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer) {
 	// store memory informations into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpMemoryInformations = pointerToLpBuffer;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpMemoryInformations = pointerToLpBuffer;
 }
 
 VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
-	State::apiOutputs* gs = State::getApiOutputs();
-	W::LPMEMORYSTATUSEX memoryInformations = (W::LPMEMORYSTATUSEX)*gs->lpMemoryInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	W::LPMEMORYSTATUSEX memoryInformations = (W::LPMEMORYSTATUSEX)*apiOutputs->lpMemoryInformations;
 	memoryInformations->ullTotalPhys = BP_MINRAMGB;
 	// Taint source: API return value
-	addTaintMemory(*gs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
+	addTaintMemory(*apiOutputs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
 }
 
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo) {
 	// Store system informations into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpSystemInformations = pointerToLpSystemInfo;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpSystemInformations = pointerToLpSystemInfo;
 }
 
 VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
-	State::apiOutputs* gs = State::getApiOutputs();
-	W::LPSYSTEM_INFO systemInfoStructure = (W::LPSYSTEM_INFO) *gs->lpSystemInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	W::LPSYSTEM_INFO systemInfoStructure = (W::LPSYSTEM_INFO) *apiOutputs->lpSystemInformations;
 	W::DWORD_PTR* dwActiveProcessorMask = &systemInfoStructure->dwActiveProcessorMask; // inner-pointer dwActiveProcessorMask
 	systemInfoStructure->dwNumberOfProcessors = BP_NUMCORES;
 	// Taint source: API return value
-	addTaintMemory(*gs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
+	addTaintMemory(*apiOutputs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
 	addTaintMemory((ADDRINT)dwActiveProcessorMask, sizeof(W::DWORD), TAINT_COLOR_1, true, "GetSystemInfo dwActiveProcessorMask");
 }
 
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint) {
 	// Store mouse pointer informations into global variables
-	State::apiOutputs* gs = State::getApiOutputs();
-	gs->lpCursorPointerInformations = pointerToLpPoint;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpCursorPointerInformations = pointerToLpPoint;
 }
 
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
-	State::apiOutputs* gs = State::getApiOutputs();
-	W::LPPOINT point = (W::LPPOINT)*gs->lpCursorPointerInformations;
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	W::LPPOINT point = (W::LPPOINT)*apiOutputs->lpCursorPointerInformations;
 	point->x = rand() % 500;
 	point->y = rand() % 500;
 	// Taint source: API return value
-	addTaintMemory(*gs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+	addTaintMemory(*apiOutputs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
 VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {
@@ -463,13 +442,6 @@ VOID SetTimerEntry(W::UINT* time) {
 	gs->_timeInfo.sleepMs += *time;
 	gs->_timeInfo.sleepMsTick += *time;
 	*time = BP_TIMER;
-
-}
-
-VOID SetTimerExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
-	CHECK_ESP_RETURN_ADDRESS(esp);
-	// Taint source: API return value
-	taintRegisterEax(ctx);
 }
 
 VOID WaitForSingleObjectEntry(W::DWORD *time) {
@@ -480,12 +452,6 @@ VOID WaitForSingleObjectEntry(W::DWORD *time) {
 	gs->_timeInfo.sleepMs += *time;
 	gs->_timeInfo.sleepMsTick += *time;
 	*time = BP_TIMER;
-}
-
-VOID WaitForSingleObjectExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
-	CHECK_ESP_RETURN_ADDRESS(esp);
-	// Taint source: API return value
-	taintRegisterEax(ctx);
 }
 
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time) {

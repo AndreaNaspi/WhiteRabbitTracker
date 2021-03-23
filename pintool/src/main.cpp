@@ -276,6 +276,7 @@ VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *) {
 /* Function to handle the exceptions (anti-DBI checks)                   */
 /* ===================================================================== */
 EXCEPT_HANDLING_RESULT internalExceptionHandler(THREADID tid, EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt, VOID *v) {
+	std::cout << PIN_ExceptionToString(pExceptInfo).c_str() << " Code: " << pExceptInfo->GetExceptCode() << std::endl;
 	// Handle single-step exception
 	if (pExceptInfo->GetExceptCode() == EXCEPTCODE_DBG_SINGLE_STEP_TRAP) {
 		ExceptionHandler *eh = ExceptionHandler::getInstance();
@@ -284,7 +285,7 @@ EXCEPT_HANDLING_RESULT internalExceptionHandler(THREADID tid, EXCEPTION_INFO *pE
 	} 
 	// Libdft hack for EFLAGS (unaligned memory access)
 	else if (PIN_GetExceptionCode(pExceptInfo) == EXCEPTCODE_ACCESS_MISALIGNED) {
-		// Clear EFLAGS.AC
+		// Clear EFLAGS.AC 
 		PIN_SetPhysicalContextReg(pPhysCtxt, REG_EFLAGS, CLEAR_EFLAGS_AC(PIN_GetPhysicalContextReg(pPhysCtxt, REG_EFLAGS)));
 		return EHR_HANDLED;
 	}
@@ -346,8 +347,21 @@ int main(int argc, char * argv[]) {
 		}
 	}
 
+	// Obtain a TLS key
+	tls_key = PIN_CreateThreadDataKey(NULL);
+	if (tls_key == INVALID_TLS_KEY) {
+		std::cerr << "cannot initialize TLS" << std::endl;;
+		PIN_ExitProcess(1);
+	}
+
 	// Initialize ProcessInfo object 
 	pInfo.init(app_name);
+
+	// Register system hooking
+	SYSHOOKING::Init();
+
+	// Register function to be called BEFORE every TRACE (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
+	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID*)0);
 
 	// Register context changes
 	PIN_AddContextChangeFunction(OnCtxChange, NULL);
@@ -365,9 +379,6 @@ int main(int argc, char * argv[]) {
 	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
 	specialInstructionsHandlerInfo->init(&pInfo, &logInfo);
 
-	// Register function to be called BEFORE every TRACE (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
-	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID*)0);
-
 	// Register function to be called for every loaded module (populate ProcessInfo object, populate interval tree and add API HOOKING FOR FURTHER TAINT ANALYSIS)
 	IMG_AddInstrumentFunction(ImageLoad, NULL);
 
@@ -376,16 +387,6 @@ int main(int argc, char * argv[]) {
 
 	// Initialize Functions (to handle API hooking and taint hooking) object 
 	Functions::Init();
-
-	// Obtain a TLS key
-	tls_key = PIN_CreateThreadDataKey(NULL);
-	if (tls_key == INVALID_TLS_KEY) {
-		std::cerr << "cannot initialize TLS" << std::endl;;
-		PIN_ExitProcess(1);
-	}
-
-	// Register system hooking
-	SYSHOOKING::Init();
 
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {
