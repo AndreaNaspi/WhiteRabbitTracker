@@ -36,7 +36,8 @@ TracerWithTaintingCapabilities supports the following command-line options:
 
 Option | Meaning
 --- | --- 
-`-o` | Specify output file to be used for API tracing (default: profile.tag
+`-o` | Specify output file to be used for API tracing (default: profile.tag)
+`-bypass` | Enable return value bypass for APIs and instructions  to avoid Sandbox/VM detection (disabled by default)
 
 For instance, to run an evasive program named `sample.exe` in a sandbox-like automatic mode try:
 
