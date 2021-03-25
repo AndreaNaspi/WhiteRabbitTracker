@@ -3,6 +3,7 @@
 #include "ProcessInfo.h"
 #include "LoggingInfo.h"
 #include "ExceptionHandler.h"
+#include "HiddenElements.h"
 #include "pin.H"
 #include "state.h"
 #include "winheaders.h"

@@ -166,7 +166,7 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 			UINT32 mask = 0xFFFFFFFFULL;
 			_ecx &= (mask >> 1);
 		}
-		//TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
 	}
 	// EAX >= 0x40000000 && EAX <= 0x400000FF -> reserved cpuid levels for Intel and AMD to provide an interface to pass information from the hypervisor to the guest (VM)
 	else if (gs->cpuid_eax >= 0x40000000 && gs->cpuid_eax <= 0x400000FF) {
@@ -176,9 +176,9 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 			_ecx = 0x0ULL;
 			_edx = 0x0ULL;
 		}
-		//TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
-		//TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
-		//TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
 	}
 	// Change cpuid results (EBX, ECX, EDX)
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);

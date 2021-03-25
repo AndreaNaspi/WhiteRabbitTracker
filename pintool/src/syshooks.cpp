@@ -42,10 +42,12 @@ namespace SYSHOOKS {
 
 		if (HiddenElements::shouldHideRegOpenKeyStr(value)) {
 			// free right handle
-			W::CloseHandle(*khandle);
-			*khandle = (W::HANDLE) - 1;
-			ADDRINT _eax = CODEFORINVALIDHANDLE;
-			PIN_SetContextReg(ctx, REG_GAX, _eax);
+			if (_knobBypass) {
+				W::CloseHandle(*khandle);
+				*khandle = (W::HANDLE) - 1;
+				ADDRINT _eax = CODEFORINVALIDHANDLE;
+				PIN_SetContextReg(ctx, REG_GAX, _eax);
+			}
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			addTaintMemory((ADDRINT)khandle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtOpenKey");
 			return;
@@ -73,13 +75,15 @@ namespace SYSHOOKS {
 
 				PSYSTEM_FIRMWARE_TABLE_INFORMATION info = (PSYSTEM_FIRMWARE_TABLE_INFORMATION)sc->arg1;
 				// scan entire bios in order to find vbox string
-				for (size_t i = 0; i < info->TableBufferLength - sizeVbox; i++) {
-					if (memcmp(info->TableBuffer + i, vbox, sizeVbox) == 0) {
-						PIN_SafeCopy(info->TableBuffer + i, escape, sizeof(escape));
-					}
-					else if (memcmp(info->TableBuffer + i, vbox2, sizeVbox2) == 0 ||
-						memcmp(info->TableBuffer + i, vbox3, sizeVbox3) == 0) {
-						PIN_SafeCopy(info->TableBuffer + i, escape2, sizeof(escape2));
+				if (_knobBypass) {
+					for (size_t i = 0; i < info->TableBufferLength - sizeVbox; i++) {
+						if (memcmp(info->TableBuffer + i, vbox, sizeVbox) == 0) {
+							PIN_SafeCopy(info->TableBuffer + i, escape, sizeof(escape));
+						}
+						else if (memcmp(info->TableBuffer + i, vbox2, sizeVbox2) == 0 ||
+							memcmp(info->TableBuffer + i, vbox3, sizeVbox3) == 0) {
+							PIN_SafeCopy(info->TableBuffer + i, escape2, sizeof(escape2));
+						}
 					}
 				}
 
@@ -88,9 +92,11 @@ namespace SYSHOOKS {
 				char escape3[] = { "      " };
 				W::ULONG vmwareSize = (W::ULONG)Helper::_strlen_a(vmware);
 
-				for (size_t i = 0; i < info->TableBufferLength - vmwareSize; i++) {
-					if (memcmp(info->TableBuffer + i, vmware, vmwareSize) == 0) {
-						PIN_SafeCopy(info->TableBuffer + i, escape3, sizeof(escape3));
+				if (_knobBypass) {
+					for (size_t i = 0; i < info->TableBufferLength - vmwareSize; i++) {
+						if (memcmp(info->TableBuffer + i, vmware, vmwareSize) == 0) {
+							PIN_SafeCopy(info->TableBuffer + i, escape3, sizeof(escape3));
+						}
 					}
 				}
 				// 26 MB of alerts?!?

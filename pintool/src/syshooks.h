@@ -1,4 +1,5 @@
 #pragma once
+#include "state.h"
 #include "syshooking.h"
 #include "libdft/libdft_config.h"
 #include "libdft/bridge.h"
