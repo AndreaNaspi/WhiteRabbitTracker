@@ -4,6 +4,7 @@
 #include "LoggingInfo.h"
 #include "ExceptionHandler.h"
 #include "pin.H"
+#include "state.h"
 #include "winheaders.h"
 #include "libdft/libdft_config.h"
 #include "libdft/bridge.h"

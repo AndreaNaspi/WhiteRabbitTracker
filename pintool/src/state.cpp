@@ -6,6 +6,11 @@
 State::globalState _globalState;
 State::apiOutputs  _apiOutputs;
 
+/* ===================================================================== */
+/* Knob variables                                                        */
+/* ===================================================================== */
+BOOL _knobBypass;
+
 namespace State {
 	/* ===================================================================== */
 	/* Initialization function to allocate memory for structures             */

@@ -50,8 +50,10 @@ VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformat
 VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp);
 VOID Process32FirstNextWEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations);
 VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp);
-VOID GetDiskFreeSpaceEntry(ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
-VOID GetDiskFreeSpaceExit(CONTEXT* ctx, ADDRINT esp);
+VOID GetDiskFreeSpaceAEntry(ADDRINT retAddr, ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
+VOID GetDiskFreeSpaceAExit(CONTEXT* ctx, ADDRINT esp);
+VOID GetDiskFreeSpaceWEntry(ADDRINT retAddr, ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes);
+VOID GetDiskFreeSpaceWExit(CONTEXT* ctx, ADDRINT esp);
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer);
 VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetSystemInfoEntry(ADDRINT* pointerToLpSystemInfo);
@@ -96,7 +98,8 @@ enum {
 	PROCESS32FIRSTNEXTW_INDEX,
 	REGOPENKEYA_INDEX,
 	REGOPENKEYW_INDEX,
-	GETDISKFREESPACE_INDEX,
+	GETDISKSPACEA_INDEX,
+	GETDISKSPACEW_INDEX,
 	GLOBALMEMORYSTATUS_INDEX,
 	GETSYSTEMINFO_INDEX,
 	GETCURSORPOS_INDEX, 

@@ -4,6 +4,8 @@
 #include "winheaders.h"
 #include "itree.h"
 
+extern BOOL _knobBypass;
+
 namespace State {
 
 	/* ===================================================================== */
@@ -56,6 +58,11 @@ namespace State {
 			ADDRINT* totalNumberOfBytes;
 			ADDRINT* totalNumberOfFreeBytes;
 		} _diskFreeSpaceInformations;
+		struct diskFreeSpaceInformationsW {
+			ADDRINT* freeBytesAvailableToCaller;
+			ADDRINT* totalNumberOfBytes;
+			ADDRINT* totalNumberOfFreeBytes;
+		} _diskFreeSpaceInformationsW;
 		struct icmpSendEchoInformations {
 			ADDRINT* replyBuffer;
 			ADDRINT* replySize;

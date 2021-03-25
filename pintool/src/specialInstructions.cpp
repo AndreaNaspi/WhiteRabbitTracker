@@ -162,16 +162,20 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 	PIN_GetContextRegval(ctxt, REG_GDX, reinterpret_cast<UINT8*>(&_edx));
 	// EAX = 1 -> processor info and feature bits in ECX
 	if (gs->cpuid_eax == 1) {
-		UINT32 mask = 0xFFFFFFFFULL;
-		_ecx &= (mask >> 1);
+		if (_knobBypass) {
+			UINT32 mask = 0xFFFFFFFFULL;
+			_ecx &= (mask >> 1);
+		}
 		//TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
 	}
 	// EAX >= 0x40000000 && EAX <= 0x400000FF -> reserved cpuid levels for Intel and AMD to provide an interface to pass information from the hypervisor to the guest (VM)
 	else if (gs->cpuid_eax >= 0x40000000 && gs->cpuid_eax <= 0x400000FF) {
 		// Set the registers to value 0 unsigned long long
-		_ebx = 0x0ULL;
-		_ecx = 0x0ULL;
-		_edx = 0x0ULL;
+		if (_knobBypass) {
+			_ebx = 0x0ULL;
+			_ecx = 0x0ULL;
+			_edx = 0x0ULL;
+		}
 		//TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
 		//TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
 		//TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
@@ -189,13 +193,15 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 	CHECK_EIP_ADDRESS(cur_eip);
 	// Handle and bypass the instruction
 	State::globalState* gs = State::getGlobalState();
-	gs->_timeInfo._edx = (gs->_timeInfo._edx_eax & 0xffffffff00000000ULL) >> 32; // Most significant 32
-	gs->_timeInfo._edx_eax += gs->_timeInfo.sleepMs; // Add to result ms of previous sleep call
-	gs->_timeInfo._eax = gs->_timeInfo._edx_eax & 0x00000000ffffffffULL; // Less significant 32
-	gs->_timeInfo._edx_eax += 30;
-	gs->_timeInfo.sleepMs = 0;
-	PIN_SetContextReg(ctxt, REG_GAX, gs->_timeInfo._eax);
-	PIN_SetContextReg(ctxt, REG_GDX, gs->_timeInfo._edx);
+	if (_knobBypass) {
+		gs->_timeInfo._edx = (gs->_timeInfo._edx_eax & 0xffffffff00000000ULL) >> 32; // Most significant 32
+		gs->_timeInfo._edx_eax += gs->_timeInfo.sleepMs; // Add to result ms of previous sleep call
+		gs->_timeInfo._eax = gs->_timeInfo._edx_eax & 0x00000000ffffffffULL; // Less significant 32
+		gs->_timeInfo._edx_eax += 30;
+		gs->_timeInfo.sleepMs = 0;
+		PIN_SetContextReg(ctxt, REG_GAX, gs->_timeInfo._eax);
+		PIN_SetContextReg(ctxt, REG_GDX, gs->_timeInfo._edx);
+	}
 	// Taint the registers
 	//TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
 	//TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
@@ -208,7 +214,8 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_ei
 	// Get class instance to access objects
 	ExceptionHandler *eh = ExceptionHandler::getInstance();
 	// Insert and call exception on int 2d
-	eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
+	if (_knobBypass) 
+		eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
 }
 
 /* ===================================================================== */
@@ -216,9 +223,11 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_ei
 /* ===================================================================== */
 void SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
-	// Change return value (ebx) of the instruction 'in eax, dx'
-	ADDRINT _ebx = 0;
-	PIN_SetContextReg(ctxt, REG_GBX, _ebx);
+	if (_knobBypass) {
+		// Change return value (ebx) of the instruction 'in eax, dx'
+		ADDRINT _ebx = 0;
+		PIN_SetContextReg(ctxt, REG_GBX, _ebx);
+	}
 	// Taint the registers
 	TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
 }

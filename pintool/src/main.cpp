@@ -30,6 +30,7 @@ TLS_KEY tls_key = INVALID_TLS_KEY;
 
 // Define knob for output file (used by "-o" option, default value: profile.log)
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.log", "specify output file name");
+KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "false", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection");
 
 /* ============================================================================= */
 /* Define macro to check the instruction address and check if is program code    */
@@ -317,6 +318,9 @@ int main(int argc, char * argv[]) {
 
 	// Open output file using the logging module (API tracing)
 	logInfo.init(KnobOutputFile.Value());
+
+	// Setup knob variables
+	_knobBypass = knobBypass.Value();
 
 	// Initialize global state informations
 	State::init();
