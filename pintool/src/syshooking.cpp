@@ -6,6 +6,7 @@
 #include "process.h"
 #include "state.h"
 #include "HiddenElements.h"
+#include "LoggingInfo.h"
 #include "helper.h"
 #include "itree.h"
 
@@ -15,6 +16,7 @@ namespace W {
 }
 
 extern TLS_KEY tls_key;
+LoggingInfo* logModule;
 
 namespace SYSHOOKING {
 	CHAR* syscallIDs[MAXSYSCALLS];
@@ -39,20 +41,11 @@ namespace SYSHOOKING {
 	bool checkCallSiteNTDLLWow64(itreenode_t* node, itreenode_t* root, ADDRINT* ESP);
 
 	// Initialization function
-	VOID Init() {
+	VOID Init(LoggingInfo* logInfoParameter) {
+		logModule = logInfoParameter;
 		getNtdllRangesAndWow64Info();
 		enumSyscalls();
 		registerHooks();
-	}
-
-	// For now this TLS is used for syscall info only
-	VOID SetTLSKey(THREADID tid) {
-		// POD is zero-initialized
-		pintool_tls* tdata = new pintool_tls; 
-		if (PIN_SetThreadData(tls_key, tdata, tid) == FALSE) {
-			std::cerr << "Cannot initialize the TLS key for the thread " + tid << std::endl;
-			PIN_ExitProcess(1);
-		}
 	}
 
 	// Analysis callback for Pin

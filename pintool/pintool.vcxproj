@@ -294,6 +294,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\bufferLoggingInfo.cpp" />
     <ClCompile Include="src\exceptionHandler.cpp" />
     <ClCompile Include="src\functions.cpp" />
     <ClCompile Include="src\helper.cpp" />
@@ -321,6 +322,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\bufferLoggingInfo.h" />
     <ClInclude Include="src\exceptionHandler.h" />
     <ClInclude Include="src\functions.h" />
     <ClInclude Include="src\helper.h" />

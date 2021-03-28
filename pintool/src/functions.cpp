@@ -4,6 +4,7 @@
 #include "process.h"
 #include "helper.h"
 #include "HiddenElements.h"
+#include "LoggingInfo.h"
 #include <string>
 #include <iostream>
 
@@ -38,21 +39,24 @@ itreenode_t* node = itree_search(gs->dllRangeITree, espValue); \
 if(node != NULL) return; \
 } while (0)
 
-/* ===================================================================== */
-/* Instruction description for instruction tainting                      */
-/* ===================================================================== */
+/* =========================================================================== */
+/* Instruction description for instruction tainting and modules inizialization */
+/* =========================================================================== */
 extern ins_desc_t ins_desc[XED_ICLASS_LAST];
+LoggingInfo* logInfo;
 
 namespace Functions {
 	/* ===================================================================== */
-	/* Hook/API map (internal use)                                           */
+	/* Hook/API map and other modules (internal use)                         */
 	/* ===================================================================== */
 	static std::map<std::string, int> fMap;
 
 	/* ===================================================================== */
 	/* Initialization function to define API map                             */
 	/* ===================================================================== */
-	void Init() {
+	void Init(LoggingInfo* logInfoParameter) {
+		// Setup modules
+		logInfo = logInfoParameter;
 		// Debugger API hooks
 		fMap.insert(std::pair<std::string, int>("IsDebuggerPresent", ISDEBUGGERPRESENT_INDEX));
 		fMap.insert(std::pair<std::string, int>("CheckRemoteDebuggerPresent", CHECKREMOTEDEBUGGERPRESENT_INDEX));
@@ -75,16 +79,6 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
 		fMap.insert(std::pair<std::string, int>("WaitForSingleObject", WAITOBJ_INDEX));
 		fMap.insert(std::pair<std::string, int>("IcmpSendEcho", ICMPECHO_INDEX));
-		
-		// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
-
-		// Define instruction hooking for taint analysis (taint sinks) - control transfer instruction (call, jmp, ret)
-		/**
-		// Instrument near call
-		(void)ins_set_post(&ins_desc[XED_ICLASS_CALL_NEAR], dta_instrument_jmp_call);
-		// Instrument jmp
-		(void)ins_set_post(&ins_desc[XED_ICLASS_JMP], dta_instrument_jmp_call);
-		**/
 	}
 
 
@@ -275,6 +269,7 @@ VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp) {
 	if (_knobBypass) {
 		// Bypass API return value
 		*ret = 0;
+		logInfo->logBypass("IsDebuggerPresent");
 	}
 	// Taint source: API return value
 	taintRegisterEax(ctx);
@@ -293,6 +288,7 @@ VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	W::PBOOL debuggerPresent = (W::PBOOL)*apiOutputs->lpbDebuggerPresent;
 	if (_knobBypass) {
 		*debuggerPresent = 0;
+		logInfo->logBypass("CheckRemoteDebuggerPresent");
 	}
 	// Taint source: API return value
 	addTaintMemory(*apiOutputs->lpbDebuggerPresent, sizeof(W::BOOL), TAINT_COLOR_1, true, "CheckRemoteDebuggerPresent");
@@ -334,6 +330,7 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 			const char** _path = (const char**)processInfoStructure->szExeFile;
 			*_path = BP_FAKEPROCESS;
 		}
+		logInfo->logBypass("Process32FirstA/Process32NextA");
 	}
 	// taint source: API return value
 	addTaintMemory(apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
@@ -358,6 +355,7 @@ VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
 			const wchar_t** _path = (const wchar_t**)processInfoStructure->szExeFile;
 			*_path = BP_FAKEPROCESSW;
 		}
+		logInfo->logBypass("Process32FirstW/Process32NextW");
 	}
 	// taint source: API return value
 	addTaintMemory(apiOutputs->lpProcessInformationsW, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
@@ -390,6 +388,7 @@ VOID GetDiskFreeSpaceAExit(CONTEXT* ctx, ADDRINT esp) {
 		if (totalNumberOfFreeBytes != NULL) {
 			totalNumberOfFreeBytes->QuadPart = BP_MINDISKGB;
 		}
+		logInfo->logBypass("GetDiskFreeSpaceA");
 	}
 	// taint source: API return value
 	addTaintMemory(*pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
@@ -424,6 +423,7 @@ VOID GetDiskFreeSpaceWExit(CONTEXT* ctx, ADDRINT esp) {
 		if (totalNumberOfFreeBytes != NULL) {
 			totalNumberOfFreeBytes->QuadPart = BP_MINDISKGB;
 		}
+		logInfo->logBypass("GetDiskFreeSpaceW");
 	}
 	// taint source: API return value
 	addTaintMemory(*pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
@@ -442,8 +442,10 @@ VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp) {
 	// Bypass API return value
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
 	W::LPMEMORYSTATUSEX memoryInformations = (W::LPMEMORYSTATUSEX)*apiOutputs->lpMemoryInformations;
-	if(_knobBypass)
+	if (_knobBypass) {
 		memoryInformations->ullTotalPhys = BP_MINRAMGB;
+		logInfo->logBypass("GlobalMemoryStatus");
+	}
 	// Taint source: API return value
 	addTaintMemory(*apiOutputs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
 }
@@ -460,8 +462,10 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
 	W::LPSYSTEM_INFO systemInfoStructure = (W::LPSYSTEM_INFO) *apiOutputs->lpSystemInformations;
 	W::DWORD_PTR* dwActiveProcessorMask = &systemInfoStructure->dwActiveProcessorMask; // inner-pointer dwActiveProcessorMask
-	if(_knobBypass)
+	if (_knobBypass) {
 		systemInfoStructure->dwNumberOfProcessors = BP_NUMCORES;
+		logInfo->logBypass("GetSystemInfo");
+	}
 	// Taint source: API return value
 	addTaintMemory(*apiOutputs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
 	addTaintMemory((ADDRINT)dwActiveProcessorMask, sizeof(W::DWORD), TAINT_COLOR_1, true, "GetSystemInfo dwActiveProcessorMask");
@@ -481,6 +485,7 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	if (_knobBypass) {
 		point->x = rand() % 500;
 		point->y = rand() % 500;
+		logInfo->logBypass("GetCursorPos");
 	}
 	// Taint source: API return value
 	addTaintMemory(*apiOutputs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
@@ -494,6 +499,7 @@ VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {
 		gs->_timeInfo.tick += 30 + gs->_timeInfo.sleepMsTick;
 		gs->_timeInfo.sleepMsTick = 0;
 		*ret = gs->_timeInfo.tick;
+		logInfo->logBypass("GetTickCount");
 	}
 	// Taint source: API return value
 	taintRegisterEax(ctx);
@@ -508,6 +514,7 @@ VOID SetTimerEntry(W::UINT* time) {
 		gs->_timeInfo.sleepMs += *time;
 		gs->_timeInfo.sleepMsTick += *time;
 		*time = BP_TIMER;
+		logInfo->logBypass("SetTimer");
 	}
 }
 
@@ -532,6 +539,7 @@ VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time)
 		gs->_timeInfo.sleepMs += *time;
 		gs->_timeInfo.sleepMsTick += *time;
 		*time = BP_ICMP_ECHO;
+		logInfo->logBypass("IcmpSendEcho");
 	}
 	// Store reply buffer and reply size into global variables
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
@@ -550,15 +558,3 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp) {
 }
 
 /* END OF API HOOKS */
-
-// ACTUALLY DEFINED FOR EACH INSTRUCTION IN LIBDFT_API
-
-/* INSTRUCTION HOOKS (taint sinks) begin here */
-
-/**
-static void dta_instrument_jmp_call(INS ins) {
-	instrumentForTaintCheck(ins);
-}
-**/
-
-/* END OF INSTRUCTION HOOKS */

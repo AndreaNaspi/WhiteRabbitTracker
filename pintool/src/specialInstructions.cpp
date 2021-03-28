@@ -89,6 +89,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	REGSET regsIn, regsOut;
 	// Get instruction address
 	ADDRINT curEip = INS_Address(ins);
+	xed_iclass_enum_t insIndx = (xed_iclass_enum_t)INS_Opcode(ins);
 	// If "cpuid" instruction (log call with relevant registers and alter values to avoid VM/sandbox detection)
 	if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "cpuid") || diassembled_ins.find("cpuid") != std::string::npos) {
 		// Insert a pre-call before cpuid to get the EAX register
@@ -106,7 +107,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_END);
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
-	else if (INS_IsRDTSC(ins) || diassembled_ins.find("rdtsc") != std::string::npos) {
+	else if (INS_IsRDTSC(ins) || (diassembled_ins.find("rdtsc") != std::string::npos && insIndx == XED_ICLASS_RDTSC)) {
 		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValues,
@@ -155,6 +156,7 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 	CHECK_EIP_ADDRESS(cur_eip);
 	// Get class to global objects
 	State::globalState* gs = State::getGlobalState();
+	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Get cpuid results (EBX, ECX, EDX)
 	ADDRINT _ebx, _ecx, _edx;
 	PIN_GetContextRegval(ctxt, REG_GBX, reinterpret_cast<UINT8*>(&_ebx));
@@ -165,6 +167,7 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 		if (_knobBypass) {
 			UINT32 mask = 0xFFFFFFFFULL;
 			_ecx &= (mask >> 1);
+			classHandler->logInfo->logBypass("CPUID");
 		}
 		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
 	}
@@ -175,6 +178,7 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 			_ebx = 0x0ULL;
 			_ecx = 0x0ULL;
 			_edx = 0x0ULL;
+			classHandler->logInfo->logBypass("CPUID");
 		}
 		TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
 		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
@@ -211,11 +215,14 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 /* ===================================================================== */
 void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
+	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	// Get class instance to access objects
 	ExceptionHandler *eh = ExceptionHandler::getInstance();
 	// Insert and call exception on int 2d
-	if (_knobBypass) 
+	if (_knobBypass) {
 		eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
+		classHandler->logInfo->logBypass("INT 0X2D");
+	}
 }
 
 /* ===================================================================== */
@@ -223,10 +230,12 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_ei
 /* ===================================================================== */
 void SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip) {
 	CHECK_EIP_ADDRESS(cur_eip);
+	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	if (_knobBypass) {
 		// Change return value (ebx) of the instruction 'in eax, dx'
 		ADDRINT _ebx = 0;
 		PIN_SetContextReg(ctxt, REG_GBX, _ebx);
+		classHandler->logInfo->logBypass("IN EAX,DX");
 	}
 	// Taint the registers
 	TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);

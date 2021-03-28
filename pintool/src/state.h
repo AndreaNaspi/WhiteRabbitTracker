@@ -4,6 +4,7 @@
 #include "winheaders.h"
 #include "itree.h"
 
+extern BOOL _knobApiTracing;
 extern BOOL _knobBypass;
 
 namespace State {

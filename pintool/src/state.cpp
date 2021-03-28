@@ -9,6 +9,7 @@ State::apiOutputs  _apiOutputs;
 /* ===================================================================== */
 /* Knob variables                                                        */
 /* ===================================================================== */
+BOOL _knobApiTracing;
 BOOL _knobBypass;
 
 namespace State {

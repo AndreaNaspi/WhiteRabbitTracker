@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 
+#define MAIN_LOG_NAME "profile.log"
+
 class LoggingInfo
 {
 public:
@@ -58,21 +60,9 @@ public:
 	/* ===================================================================== */
 	void logException(const ADDRINT addrFrom, std::string reason);
 	/* ===================================================================== */
-	/* Log the cpuid instruction                                             */
+	/* Log a new bypassed instruction/API                                    */
 	/* ===================================================================== */
-	void logCpuid(const ADDRINT base, const ADDRINT rva, const ADDRINT param);
-	/* ===================================================================== */
-	/* Log the rdtsc instruction                                             */
-	/* ===================================================================== */
-	void logRdtsc(const ADDRINT base, const ADDRINT rva);
-	/* ===================================================================== */
-	/* Log the int 2d instruction                                            */
-	/* ===================================================================== */
-	void logInt2d(const ADDRINT base, const ADDRINT rva);
-	/* ===================================================================== */
-	/* Log the 'in eax, dx' instruction                                      */
-	/* ===================================================================== */
-	void logInEaxDx(const ADDRINT base, const ADDRINT rva);
+	void logBypass(std::string bypassIdentifier);
 	/* ===================================================================== */
 	/* Utility function to extract a dll name from module name (parsing)     */
 	/* ===================================================================== */

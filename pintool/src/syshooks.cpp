@@ -47,6 +47,7 @@ namespace SYSHOOKS {
 				*khandle = (W::HANDLE) - 1;
 				ADDRINT _eax = CODEFORINVALIDHANDLE;
 				PIN_SetContextReg(ctx, REG_GAX, _eax);
+				logModule->logBypass("NtOpenKey");
 			}
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			addTaintMemory((ADDRINT)khandle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtOpenKey");
@@ -85,6 +86,7 @@ namespace SYSHOOKS {
 							PIN_SafeCopy(info->TableBuffer + i, escape2, sizeof(escape2));
 						}
 					}
+					logModule->logBypass("NtQuerySystemInformation VBox");
 				}
 
 				// VMware part
@@ -98,9 +100,11 @@ namespace SYSHOOKS {
 							PIN_SafeCopy(info->TableBuffer + i, escape3, sizeof(escape3));
 						}
 					}
+					logModule->logBypass("NtQuerySystemInformation VMware");
 				}
+
 				// 26 MB of alerts?!?
-				//addTaintMemory((ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
+				// addTaintMemory((ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
 		}
 	}

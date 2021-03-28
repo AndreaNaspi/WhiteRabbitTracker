@@ -28,8 +28,8 @@ TLS_KEY tls_key = INVALID_TLS_KEY;
 /* Knobs definitions                                                  */
 /* ================================================================== */
 
-// Define knob for output file (used by "-o" option, default value: profile.log)
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "profile.log", "specify output file name");
+// Define knobs
+KNOB<BOOL> knobApiTracing(KNOB_MODE_WRITEONCE, "pintool", "trace", "false", "Enable API tracing at instruction level (high load)");
 KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "false", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection");
 
 /* ============================================================================= */
@@ -76,23 +76,23 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 		for (ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
 			// Check for special instructions (cpuid, rdtsc, int and in) to avoid VM/sandbox detection and taint memory
 			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
-			// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
-			/*
-			if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
-				// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
-				// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
-				// hint: remember to use IARG_END (end argument list)!!
-				ADDRINT curEip = INS_Address(ins);
-				INS_InsertCall(
-					ins,
-					IPOINT_BEFORE, (AFUNPTR)SaveTransitions,
-					IARG_INST_PTR,
-					IARG_BRANCH_TARGET_ADDR,
-					IARG_ADDRINT, curEip,
-					IARG_END
-				);
+			if (_knobApiTracing) {
+				// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
+				if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
+					// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
+					// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
+					// hint: remember to use IARG_END (end argument list)!!
+					ADDRINT curEip = INS_Address(ins);
+					INS_InsertCall(
+						ins,
+						IPOINT_BEFORE, (AFUNPTR)SaveTransitions,
+						IARG_INST_PTR,
+						IARG_BRANCH_TARGET_ADDR,
+						IARG_ADDRINT, curEip,
+						IARG_END
+					);
+				}
 			}
-			*/
 		}
 	}
 }
@@ -235,8 +235,6 @@ static void OnCtxChange(THREADID threadIndex, CONTEXT_CHANGE_REASON reason, cons
 	}
 	// Log the exception
 	logInfo.logException(addrFrom, reasonDescription);
-	// Call analysis routine
-	_SaveTransitions(addrFrom, addrTo);
 	// Exit critical section
 	PIN_UnlockClient();
 }
@@ -248,7 +246,11 @@ static void OnCtxChange(THREADID threadIndex, CONTEXT_CHANGE_REASON reason, cons
 /* ===================================================================== */
 VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	// TLS handling
-	SYSHOOKING::SetTLSKey(tid);
+	pintool_tls* tdata = new pintool_tls;
+	if (PIN_SetThreadData(tls_key, tdata, tid) == FALSE) {
+		std::cerr << "Cannot initialize the TLS key for the thread " + tid << std::endl;
+		PIN_ExitProcess(1);
+	}
 	// Initialize libdft thread context
 	thread_ctx_t *thread_ctx = libdft_thread_start(ctxt);
 	// Setup thread informations
@@ -282,6 +284,7 @@ EXCEPT_HANDLING_RESULT internalExceptionHandler(THREADID tid, EXCEPTION_INFO *pE
 	if (pExceptInfo->GetExceptCode() == EXCEPTCODE_DBG_SINGLE_STEP_TRAP) {
 		ExceptionHandler *eh = ExceptionHandler::getInstance();
 		eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
+		logInfo.logBypass("Single Step Exception");
 		return EHR_HANDLED;
 	} 
 	// Libdft hack for EFLAGS (unaligned memory access)
@@ -317,10 +320,11 @@ int main(int argc, char * argv[]) {
 	}
 
 	// Open output file using the logging module (API tracing)
-	logInfo.init(KnobOutputFile.Value());
+	logInfo.init(MAIN_LOG_NAME);
 
 	// Setup knob variables
 	_knobBypass = knobBypass.Value();
+	_knobApiTracing = knobApiTracing.Value();
 
 	// Initialize global state informations
 	State::init();
@@ -362,7 +366,7 @@ int main(int argc, char * argv[]) {
 	pInfo.init(app_name);
 
 	// Register system hooking
-	SYSHOOKING::Init();
+	SYSHOOKING::Init(&logInfo);
 
 	// Register function to be called BEFORE every TRACE (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
 	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID*)0);
@@ -390,7 +394,7 @@ int main(int argc, char * argv[]) {
 	IMG_AddUnloadFunction(ImageUnload, NULL);
 
 	// Initialize Functions (to handle API hooking and taint hooking) object 
-	Functions::Init();
+	Functions::Init(&logInfo);
 
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {
@@ -402,7 +406,6 @@ int main(int argc, char * argv[]) {
 	std::cerr << "===============================================" << std::endl;
 	std::cerr << "This application is instrumented by " << TOOL_NAME << " v." << VERSION << std::endl;
 	std::cerr << "Profiling module " << app_name << std::endl;
-	std::cerr << "See file " << KnobOutputFile.Value() << " for analysis results" << std::endl;
 	std::cerr << "===============================================" << std::endl;
 
 	// Start the program, never returns

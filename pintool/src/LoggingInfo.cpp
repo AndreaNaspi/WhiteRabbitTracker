@@ -123,89 +123,17 @@ void LoggingInfo::logException(const ADDRINT addrFrom, std::string reason) {
 }
 
 /* ===================================================================== */
-/* Log the cpuid instruction                                             */
+/* Log a new bypassed instruction/API                                    */
 /* ===================================================================== */
-void LoggingInfo::logCpuid(const ADDRINT base, const ADDRINT rva, const ADDRINT param) {
+void LoggingInfo::logBypass(std::string bypassIdentifier) {
 	// Check if the file exist
 	if (!createFile()) {
 		return;
 	}
-	// If the base address exists, log it
-	if (base) {
-		m_traceFile << "> " << std::hex << base << "+";
-	}
-	// Log the cpuid instruction
+	// Write the new exception with relative previous address
 	m_traceFile
-		<< std::hex << rva
-		<< DELIMITER
-		<< "CPUID:"
-		<< std::hex << param
-		<< std::endl;
-	// Flush the file
-	m_traceFile.flush();
-}
-
-/* ===================================================================== */
-/* Log the rdtsc instruction                                             */
-/* ===================================================================== */
-void LoggingInfo::logRdtsc(const ADDRINT base, const ADDRINT rva) {
-	// Check if the file exist
-	if (!createFile()) {
-		return;
-	}
-	// If the base address exists, log it
-	if (base) {
-		m_traceFile << "> " << std::hex << base << "+";
-	}
-	// Log the rdtsc instruction
-	m_traceFile
-		<< std::hex << rva
-		<< DELIMITER
-		<< "RDTSC"
-		<< std::endl;
-	// Flush the file
-	m_traceFile.flush();
-}
-
-/* ===================================================================== */
-/* Log the int 2d instruction                                            */
-/* ===================================================================== */
-void LoggingInfo::logInt2d(const ADDRINT base, const ADDRINT rva) {
-	// Check if the file exist
-	if (!createFile()) {
-		return;
-	}
-	// If the base address exists, log it
-	if (base) {
-		m_traceFile << "> " << std::hex << base << "+";
-	}
-	// Log the rdtsc instruction
-	m_traceFile
-		<< std::hex << rva
-		<< DELIMITER
-		<< "INT 2D"
-		<< std::endl;
-	// Flush the file
-	m_traceFile.flush();
-}
-
-/* ===================================================================== */
-/* Log the 'in eax, dx' instruction                                      */
-/* ===================================================================== */
-void LoggingInfo::logInEaxDx(const ADDRINT base, const ADDRINT rva) {
-	// Check if the file exist
-	if (!createFile()) {
-		return;
-	}
-	// If the base address exists, log it
-	if (base) {
-		m_traceFile << "> " << std::hex << base << "+";
-	}
-	// Log the rdtsc instruction
-	m_traceFile
-		<< std::hex << rva
-		<< DELIMITER
-		<< "IN EAX, DX"
+		<< "[BYPASS] "
+		<< bypassIdentifier
 		<< std::endl;
 	// Flush the file
 	m_traceFile.flush();

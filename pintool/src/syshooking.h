@@ -1,5 +1,6 @@
 #pragma once
 #include "pin.h"
+#include "LoggingInfo.h"
 #include <iostream>
 using std::cerr;
 
@@ -38,12 +39,15 @@ typedef void(*syscall_hook)(syscall_t *sc, CONTEXT *ctx, SYSCALL_STANDARD std);
 
 typedef struct {
 	syscall_t sc;
+	FILE* logfile;
+	char *scztoon; // B uffer for logging
+	UINT32 drops;
 } pintool_tls;
 
+extern LoggingInfo* logModule;
 
 namespace SYSHOOKING {
-	VOID Init();
-	VOID SetTLSKey(THREADID tid);
+	VOID Init(LoggingInfo* logInfoParameter);
 	VOID SyscallEntry(THREADID thread_id, CONTEXT *ctx, SYSCALL_STANDARD std, void *v);
 	VOID SyscallExit(THREADID thread_id, CONTEXT *ctx, SYSCALL_STANDARD std, void *v);
 	BOOL ReturnsToUserCode(CONTEXT* ctx);

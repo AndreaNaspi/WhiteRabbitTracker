@@ -2,6 +2,7 @@
 #include <map>
 #include "pin.H"
 #include "state.h"
+#include "LoggingInfo.h"
 
 namespace W {
 	#define WIN32_LEAN_AND_MEAN
@@ -31,7 +32,7 @@ namespace Functions {
 	/* ===================================================================== */
 	/* Initialization function to define hook/API map and define taint hooks */
 	/* ===================================================================== */
-	void Init();
+	void Init(LoggingInfo* logInfoParameter);
 	/* ===================================================================== */
 	/* Function to iterate over APIs that we want to hook/replace            */
 	/* ===================================================================== */
