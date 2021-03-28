@@ -259,12 +259,10 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	TTINFO(tid) = tid;
 	// Retrieve OS thread ID
 	TTINFO(os_tid) = PIN_GetTid();
-	// Setup log path for the specific thread ID
-	char tmp[32];
-	sprintf(tmp, "tainted-%u.log", TTINFO(os_tid));
-	TTINFO(logname) = strdup(tmp);
 	// Undefine thread informations (used later in bridge.cpp for libdft tainting)
 	#undef TTINFO
+	// Initialize buffered logger for the current thread
+	threadInitLogger(tid, tdata);
 }
 
 /* ===================================================================== */
@@ -273,6 +271,9 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 VOID OnThreadFini(THREADID tid, const CONTEXT *ctxt, INT32, VOID *) {
 	// Destroy libdft thread context
 	libdft_thread_fini(ctxt);
+	// Destroy buffered logger for the current thread
+	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, tid));
+	threadExitLogger(tid, tdata);
 }
 
 /* ===================================================================== */
@@ -320,7 +321,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	// Open output file using the logging module (API tracing)
-	logInfo.init(MAIN_LOG_NAME);
+	logInfo.init(LOGPATH MAIN_LOG_NAME);
 
 	// Setup knob variables
 	_knobBypass = knobBypass.Value();
@@ -334,22 +335,25 @@ int main(int argc, char * argv[]) {
 
 	// Remove old file related to taint analysis
 	W::WIN32_FIND_DATA ffd; 
-	W::HANDLE hFind = FindFirstFile(".\\*.log", &ffd);
+	W::HANDLE hFind = FindFirstFile(LOGPATH_TAINT "*.log", &ffd);
 	do {
 		std::string fileName = ffd.cFileName;
-		if (fileName.rfind("tainted-", 0) == 0)
-			remove(fileName.c_str());
+		if (fileName.rfind("tainted-", 0) == 0) {
+			char fullPath[256];
+			sprintf(fullPath, LOGPATH_TAINT "%s", fileName.c_str());
+			remove(fullPath);
+		}
 	} while (FindNextFile(hFind, &ffd) != 0);
 
 	// Get module name from command line argument
-	std::string app_name = "";
+	std::string appName = "";
 	// Iterate over argc until "--"
 	for (int i = 1; i < (argc - 1); i++) {
 		if (strcmp(argv[i], "--") == 0) {
-			app_name = argv[i + 1];
+			appName = argv[i + 1];
 			// If the app_name contains a directory, split it and get the file name
-			if (app_name.find("/") != std::string::npos) {
-				app_name = app_name.substr(app_name.rfind("/") + 1);
+			if (appName.find("/") != std::string::npos) {
+				appName = appName.substr(appName.rfind("/") + 1);
 			}
 			break;
 		}
@@ -363,7 +367,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	// Initialize ProcessInfo object 
-	pInfo.init(app_name);
+	pInfo.init(appName);
 
 	// Register system hooking
 	SYSHOOKING::Init(&logInfo);
@@ -405,7 +409,7 @@ int main(int argc, char * argv[]) {
 	// Welcome message :)
 	std::cerr << "===============================================" << std::endl;
 	std::cerr << "This application is instrumented by " << TOOL_NAME << " v." << VERSION << std::endl;
-	std::cerr << "Profiling module " << app_name << std::endl;
+	std::cerr << "Profiling module " << appName << std::endl;
 	std::cerr << "===============================================" << std::endl;
 
 	// Start the program, never returns

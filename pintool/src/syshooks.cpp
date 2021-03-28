@@ -102,9 +102,7 @@ namespace SYSHOOKS {
 					}
 					logModule->logBypass("NtQuerySystemInformation VMware");
 				}
-
-				// 26 MB of alerts?!?
-				// addTaintMemory((ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
+				addTaintMemory((ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
 		}
 	}

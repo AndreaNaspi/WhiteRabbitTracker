@@ -4,10 +4,14 @@
 #include <fstream>
 #include <intrin.h>
 
-#define LOGPATH "C:\\pin315\\sniper\\"
-#define LOG_ENABLED		1
-#define LOG_ARG_COUNTS	1
-#define USE_RDTSCP		1
+#define LOGPATH "C:\\Pin315\\"
+#define LOGPATH_TAINT "C:\\Pin315\\taint\\"
+#define SIZE_SCZTOON	5*1024*1024	// 5 MB (reduce with many threads?)
+#define SIZE_SCZ		2048		// max bytes written at a time
+
+namespace W {
+#include "windows.h"
+}
 
 // Syscall structure
 typedef struct _syscall_t {
@@ -25,10 +29,12 @@ typedef struct _syscall_t {
 typedef struct {
 	syscall_t sc;
 	FILE* logfile;
-	char *scztoon; // B uffer for logging
+	char *scztoon; // Buffer for logging
 	UINT32 drops;
 } pintool_tls;
 
+inline BOOL scztoonIsFull(pintool_tls* tdata);
+void scztoonToDisk(pintool_tls* tdata);
 VOID threadInitLogger(THREADID tid, pintool_tls* tdata);
 VOID threadExitLogger(THREADID tid, pintool_tls* tdata);
-VOID logFun(pintool_tls* tdata, const char* fmt, ...);
+VOID logAlert(pintool_tls* tdata, const char* fmt, ...);

@@ -1,6 +1,8 @@
 #pragma once
 #include "pin.H"
 #include "libdft_api.h"
+#include "../syshooking.h"
+#include "../bufferLoggingInfo.h"
 #include <iostream>
 using std::cerr;
 

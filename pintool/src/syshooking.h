@@ -1,8 +1,11 @@
 #pragma once
 #include "pin.h"
+#include "bufferLoggingInfo.h"
 #include "LoggingInfo.h"
 #include <iostream>
 using std::cerr;
+
+extern TLS_KEY tls_key;
 
 /** These numbers are tailored to Windows 7 SP1 **/
 // We saw ordinals as high as 0x1a3 in ntdll
@@ -21,28 +24,8 @@ using std::cerr;
 // BluePill won't need more than that
 #define SYSCALL_NUM_ARG 11
 
-// Syscall structure
-typedef struct _syscall_t {
-	ADDRINT syscall_number;
-	union {
-		ADDRINT args[12];
-		struct {
-			ADDRINT arg0, arg1, arg2, arg3;
-			ADDRINT arg4, arg5, arg6, arg7;
-			ADDRINT arg8, arg9, arg10, arg11;
-		};
-	};
-} syscall_t;
-
 // Function signature of our hook functions
 typedef void(*syscall_hook)(syscall_t *sc, CONTEXT *ctx, SYSCALL_STANDARD std);
-
-typedef struct {
-	syscall_t sc;
-	FILE* logfile;
-	char *scztoon; // B uffer for logging
-	UINT32 drops;
-} pintool_tls;
 
 extern LoggingInfo* logModule;
 

@@ -207,8 +207,8 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 		PIN_SetContextReg(ctxt, REG_GDX, gs->_timeInfo._edx);
 	}
 	// Taint the registers
-	//TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
-	//TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+	TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
 }
 /* ===================================================================== */
 /* Function to handle the int 2d instruction                             */

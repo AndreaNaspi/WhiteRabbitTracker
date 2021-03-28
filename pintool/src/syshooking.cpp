@@ -15,7 +15,6 @@ namespace W {
 #include "windows.h"
 }
 
-extern TLS_KEY tls_key;
 LoggingInfo* logModule;
 
 namespace SYSHOOKING {

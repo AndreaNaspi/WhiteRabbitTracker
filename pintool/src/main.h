@@ -5,6 +5,7 @@
 #include "state.h"
 #include "ProcessInfo.h"
 #include "ModuleInfo.h"
+#include "bufferLoggingInfo.h"
 #include "LoggingInfo.h"
 #include "SpecialInstructions.h"
 #include "functions.h"

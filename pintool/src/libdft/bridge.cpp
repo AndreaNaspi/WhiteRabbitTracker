@@ -75,7 +75,10 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 		// set to 0 when == NULL
 		if (itree_search(gs->dllRangeITree, addr) != NULL)
 			goto END;
-		// Get the tainted instruction in a buffer (using INS_Disassemble)
+		// Log the tainted instruction using a buffered logger
+		pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		logAlert(tdata, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
+		/*
 		char buf[512];
 		sprintf(buf, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
 		// Open the log file (specified in OnThreadStart, see main.cpp) and log the tainted instruction
@@ -83,7 +86,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 		if (logFile) {
 			fprintf(logFile, "%s", buf);
 			fclose(logFile);
-		}
+		}*/
 	}
 END:
 #else
