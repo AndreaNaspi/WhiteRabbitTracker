@@ -78,15 +78,6 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 		// Log the tainted instruction using a buffered logger
 		pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
 		logAlert(tdata, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
-		/*
-		char buf[512];
-		sprintf(buf, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
-		// Open the log file (specified in OnThreadStart, see main.cpp) and log the tainted instruction
-		FILE *logFile = fopen(TTINFO(logname), "a"); 
-		if (logFile) {
-			fprintf(logFile, "%s", buf);
-			fclose(logFile);
-		}*/
 	}
 END:
 #else

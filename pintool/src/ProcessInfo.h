@@ -15,6 +15,11 @@ using std::endl;
 
 #define UNKNOWN_ADDR ~ADDRINT(0)
 
+#define FIELD_OFFSET(type, field)    ((W::LONG)(W::LONG_PTR)&(((type *)0)->field))
+#define GetImgDirEntryRVA( pNTHdr, IDE ) (pNTHdr->OptionalHeader.DataDirectory[IDE].VirtualAddress)
+#define GetImgDirEntrySize( pNTHdr, IDE ) (pNTHdr->OptionalHeader.DataDirectory[IDE].Size)
+#define MakePtr( cast, ptr, addValue ) (cast)( (W::DWORD_PTR)(ptr) + (W::DWORD_PTR)(addValue))
+
 class ProcessInfo
 {
 public:
@@ -73,6 +78,11 @@ public:
 	/* Function to remove the current image from the interval tree           */
 	/* ===================================================================== */
 	void removeCurrentImageFromTree(IMG img);
+
+	/* ===================================================================== */
+	/* Function to parse the export table of a certain image                 */
+	/* ===================================================================== */
+	bool ProcessInfo::parseExportTable(W::PBYTE pImageBase, std::map<W::DWORD, std::string> &exportsMap, std::map<W::DWORD, W::DWORD> &rvaToFileOffsetMap, bool addFwdAndData);
 
 	/* ===================================================================== */
 	/* Utility function to get a section from an address (return a section)  */
