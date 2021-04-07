@@ -197,6 +197,7 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 	CHECK_EIP_ADDRESS(cur_eip);
 	// Handle and bypass the instruction
 	State::globalState* gs = State::getGlobalState();
+	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	if (_knobBypass) {
 		gs->_timeInfo._edx = (gs->_timeInfo._edx_eax & 0xffffffff00000000ULL) >> 32; // Most significant 32
 		gs->_timeInfo._edx_eax += gs->_timeInfo.sleepMs; // Add to result ms of previous sleep call
@@ -205,6 +206,7 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 		gs->_timeInfo.sleepMs = 0;
 		PIN_SetContextReg(ctxt, REG_GAX, gs->_timeInfo._eax);
 		PIN_SetContextReg(ctxt, REG_GDX, gs->_timeInfo._edx);
+		// classHandler->logInfo->logBypass("RDTSC"); // very high load
 	}
 	// Taint the registers
 	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);

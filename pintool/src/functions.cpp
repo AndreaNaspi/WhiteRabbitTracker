@@ -474,21 +474,25 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint) {
 	// Store mouse pointer informations into global variables
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
-	apiOutputs->lpCursorPointerInformations = pointerToLpPoint;
+	apiOutputs->lpCursorPointerInformations = *pointerToLpPoint;
 }
 
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
-	W::LPPOINT point = (W::LPPOINT)*apiOutputs->lpCursorPointerInformations;
+	W::LPPOINT point = (W::LPPOINT)apiOutputs->lpCursorPointerInformations;
+	if (point == NULL)
+		return;
 	if (_knobBypass) {
-		point->x = rand() % 500;
-		point->y = rand() % 500;
+		if(point->x)
+			point->x = rand() % 500;
+		if(point->y)
+			point->y = rand() % 500;
 		logInfo->logBypass("GetCursorPos");
 	}
 	// Taint source: API return value
-	addTaintMemory(*apiOutputs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
+	addTaintMemory(apiOutputs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
 VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {

@@ -375,6 +375,19 @@ int main(int argc, char * argv[]) {
 	// Register function to be called BEFORE every TRACE (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
 	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID*)0);
 
+	// Initialize SpecialInstructions (to handle special instructions) object with related modules (processInfo and logInfo)
+	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
+	specialInstructionsHandlerInfo->init(&pInfo, &logInfo);
+
+	// Register function to be called for every loaded module (populate ProcessInfo object, populate interval tree and add API HOOKING FOR FURTHER TAINT ANALYSIS)
+	IMG_AddInstrumentFunction(ImageLoad, NULL);
+
+	// Register function to be called for evenry unload module (remove image from interval tree)
+	IMG_AddUnloadFunction(ImageUnload, NULL);
+
+	// Initialize Functions object (to handle API hooking and taint hooking) 
+	Functions::Init(&logInfo);
+
 	// Register context changes
 	PIN_AddContextChangeFunction(OnCtxChange, NULL);
 
@@ -386,19 +399,6 @@ int main(int argc, char * argv[]) {
 
 	// Register thread end evenet to destroy libdft thread context
 	PIN_AddThreadFiniFunction(OnThreadFini, NULL);
-
-	// Initialize SpecialInstructions (to handle special instructions) object with related modules (processInfo and logInfo)
-	specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
-	specialInstructionsHandlerInfo->init(&pInfo, &logInfo);
-
-	// Register function to be called for every loaded module (populate ProcessInfo object, populate interval tree and add API HOOKING FOR FURTHER TAINT ANALYSIS)
-	IMG_AddInstrumentFunction(ImageLoad, NULL);
-
-	// Register function to be called for evenry unload module (remove image from interval tree)
-	IMG_AddUnloadFunction(ImageUnload, NULL);
-
-	// Initialize Functions (to handle API hooking and taint hooking) object 
-	Functions::Init(&logInfo);
 
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {

@@ -236,8 +236,14 @@ namespace SYSHOOKING {
 	}
 
 	static VOID registerHooks() {
+		// Handle the NtCreateFile API (Virtualbox/VMware files access) 
+		sysEntryHooks[lookupIndex("NtCreateFile")] = &SYSHOOKS::NtCreateFile_entry;
+		// Handle the NtOpenKey API (registry access)
 		sysExitHooks[lookupIndex("NtOpenKey")] = &SYSHOOKS::NtOpenKey_exit;
 		sysExitHooks[lookupIndex("NtOpenKeyEx")] = &SYSHOOKS::NtOpenKey_exit;
+		// Handle the NtQueryInformationProcess API (process information access)
+		sysExitHooks[lookupIndex("NtQueryInformationProcess")] = &SYSHOOKS::NtQueryInformationProcess_exit;
+		// Handle the NtQuerySystemInformation API (firmware table access)
 		sysExitHooks[lookupIndex("NtQuerySystemInformation")] = &SYSHOOKS::NtQuerySystemInformation_exit;
 
 		// Register analysis callbacks for Pin

@@ -47,7 +47,7 @@ namespace State {
 		ADDRINT* lpbDebuggerPresent;
 		ADDRINT  lpProcessInformations;
 		ADDRINT  lpProcessInformationsW;
-		ADDRINT* lpCursorPointerInformations;
+		ADDRINT lpCursorPointerInformations;
 		ADDRINT* lpMemoryInformations;
 		ADDRINT* lpSystemInformations;
 		struct enumProcessesInformations {
@@ -100,4 +100,5 @@ extern State::apiOutputs _apiOutputs;
 /* Update structure that store global objects                            */
 /* ===================================================================== */
 #define FetchGlobalState	State::globalState* gs = &_globalState;
+#define FetchApiOutputs	    State::apiOutputs* apiOutputs = &_apiOutputs;
 #define FetchTimeState		State::timeInfo* tinfo = &_globalState._timeInfo;
