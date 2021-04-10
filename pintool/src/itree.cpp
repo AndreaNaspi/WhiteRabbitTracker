@@ -7,13 +7,14 @@
 /* ===================================================================== */
 /* Initialization function to create the interval tree                   */
 /* ===================================================================== */
-itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void *data) {
+itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void* data, void* exportsMap) {
 	// Allocate memory
 	itreenode_t *tree = (itreenode_t *)malloc(sizeof(itreenode_t));
 	// Populate initial data in the interval tree
 	tree->start_addr = start_addr;
 	tree->end_addr = end_addr;
 	tree->data = data;
+	tree->exportsMap = exportsMap;
 	tree->left = NULL;
 	tree->right = NULL;
 	// Return an empty interval tree
@@ -23,7 +24,7 @@ itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void *data) {
 /* ===================================================================== */
 /* Function to insert left/right node in the interval tree               */
 /* ===================================================================== */
-bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void* data) {
+bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void* data, void* exportsMap) {
 	// Get the current interval tree
 	itreenode_t *senti = tree;
 
@@ -34,11 +35,11 @@ bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void*
 	else if (senti->end_addr < start_addr) {
 		// Check if the right subtree exists. If the right subtree exist, add the node data (recursive call until leaf)
 		if (senti->right) {
-			return itree_insert(senti->right, start_addr, end_addr, data);
+			return itree_insert(senti->right, start_addr, end_addr, data, exportsMap);
 		}
 		// If the right subtree not exists, initialize it with the new node data
 		else {
-			senti->right = itree_init(start_addr, end_addr, data);
+			senti->right = itree_init(start_addr, end_addr, data, exportsMap);
 			return true;
 		}
 	}
@@ -46,11 +47,11 @@ bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void*
 	else {
 		// Check if the left subtree exists. If the left subtree exist, add the node data (recursive call until leaf)
 		if (senti->left) {
-			return itree_insert(senti->left, start_addr, end_addr, data);
+			return itree_insert(senti->left, start_addr, end_addr, data, exportsMap);
 		}
 		// If the left subtree not exists (leaf found), initialize it with the new node data
 		else {
-			senti->left = itree_init(start_addr, end_addr, data);
+			senti->left = itree_init(start_addr, end_addr, data, exportsMap);
 			return true;
 		}
 	}

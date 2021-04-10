@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include "pin.H" 
 #include "winheaders.h"
 #include "itree.h"

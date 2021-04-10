@@ -86,26 +86,16 @@ void ProcessInfo::addCurrentImageToTree(IMG img) {
 		State::globalState* gs = State::getGlobalState();
 
 		// Parse the export table of the current image
-		/*
 		std::map<W::DWORD, std::string> exportsMap;
 		std::map<W::DWORD, W::DWORD> rvaToFileOffsetMap;
-		std::cerr << imgName << std::endl;
-		parseExportTable((W::PBYTE)imgStart, exportsMap, rvaToFileOffsetMap, false);
-		std::cerr << "\n" << std::endl;
-		for (auto const& p : exportsMap)
-		{
-			std::cout << p.first << ' ' << p.second << '\n';
-		}*/
+		parseExportTable(data, imgStart, exportsMap, rvaToFileOffsetMap, false);
 
-
-
-		// If the interval tree does not exist, create it
 		if (gs->dllRangeITree == NULL) {
-			gs->dllRangeITree = itree_init(imgStart, imgEnd, (void*)data);
+			gs->dllRangeITree = itree_init(imgStart, imgEnd, (void*)data, (void*)&exportsMap);
 		}
 		// Else, add the current image to the interval tree
 		else {
-			bool success = itree_insert(gs->dllRangeITree, imgStart, imgEnd, (void*)data);
+			bool success = itree_insert(gs->dllRangeITree, imgStart, imgEnd, (void*)data, (void*)&exportsMap);
 			// Check for possible error
 			if (!success) {
 				fprintf(stderr, "==> Duplicate range insertion for DLL %s\n", data);
@@ -119,6 +109,16 @@ void ProcessInfo::addCurrentImageToTree(IMG img) {
 			itree_print(gs->dllRangeITree, 0);
 			ASSERT(false, "Broken DLL interval tree");
 		}
+
+		/*
+		for (auto const& x : exportsMap)
+		{
+			std::cout << x.first  // string (key)
+				<< ':'
+				<< x.second // string's value 
+				<< std::endl;
+		}*/
+		// If the interval tree does not exist, create it
 
 	}
 	else {
@@ -158,12 +158,11 @@ void ProcessInfo::removeCurrentImageFromTree(IMG img) {
 	PIN_UnlockClient();
 }
 
-static W::PIMAGE_SECTION_HEADER peGetEnclosingSectionHeader(W::DWORD rva, W::PIMAGE_NT_HEADERS32 pNTHeader) {
-	W::PIMAGE_SECTION_HEADER section = (W::PIMAGE_SECTION_HEADER)((W::ULONG_PTR)(pNTHeader) 
-		                                                          + FIELD_OFFSET(W::IMAGE_NT_HEADERS, OptionalHeader) 
-		                                                          + ((pNTHeader))->FileHeader.SizeOfOptionalHeader);
+W::PIMAGE_SECTION_HEADER peGetEnclosingSectionHeader(W::DWORD rva, W::PIMAGE_NT_HEADERS32 pNTHeader) {
+	W::PIMAGE_SECTION_HEADER section = MYIMAGE_FIRST_SECTION(pNTHeader);
+
 	unsigned i;
-	for (i = 0; i < pNTHeader->FileHeader.NumberOfSections; i++, section++) {
+	for (i = 0; i < pNTHeader->FileHeader.NumberOfSections; i++, section++){
 		W::DWORD size = section->Misc.VirtualSize;
 		if (0 == size)
 			size = section->SizeOfRawData;
@@ -173,15 +172,15 @@ static W::PIMAGE_SECTION_HEADER peGetEnclosingSectionHeader(W::DWORD rva, W::PIM
 	return 0;
 }
 
-static W::LPVOID peGetPtrFromRVA(W::DWORD rva, W::PIMAGE_NT_HEADERS32 pNTHeader, W::PBYTE imageBase) {
+W::LPVOID peGetPtrFromRVA(W::DWORD rva, W::PIMAGE_NT_HEADERS32 pNTHeader, W::PBYTE imageBase) {
 	W::PIMAGE_SECTION_HEADER pSectionHdr;
-	int delta;
+	INT delta;
 
 	pSectionHdr = peGetEnclosingSectionHeader(rva, pNTHeader);
 	if (!pSectionHdr)
 		return 0;
 
-	delta = (int)(pSectionHdr->VirtualAddress - pSectionHdr->PointerToRawData);
+	delta = (INT)(pSectionHdr->VirtualAddress - pSectionHdr->PointerToRawData);
 	return (W::PVOID)(imageBase + rva - delta);
 }
 
@@ -189,13 +188,19 @@ static W::LPVOID peGetPtrFromRVA(W::DWORD rva, W::PIMAGE_NT_HEADERS32 pNTHeader,
 /* ===================================================================== */
 /* Function to parse the export table of a certain image                 */
 /* ===================================================================== */
-bool ProcessInfo::parseExportTable(W::PBYTE pImageBase, std::map<W::DWORD, std::string> &exportsMap, std::map<W::DWORD, W::DWORD> &rvaToFileOffsetMap, bool addFwdAndData) {
+bool ProcessInfo::parseExportTable(const char* dllPath, ADDRINT baseAddress, std::map<W::DWORD, std::string> &exportsMap, std::map<W::DWORD, W::DWORD> &rvaToFileOffsetMap, bool addFwdAndData) {
+	W::HANDLE hSrcFile = W::CreateFile(dllPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	W::HANDLE hMapSrcFile = W::CreateFileMapping(hSrcFile, NULL, PAGE_READONLY, 0, 0, NULL);
+	W::PBYTE pImageBase = (W::PBYTE)W::MapViewOfFile(hMapSrcFile, FILE_MAP_READ, 0, 0, 0);
+
 	W::PIMAGE_DOS_HEADER dosHeader = (W::PIMAGE_DOS_HEADER)pImageBase;
 
+	// Get pointers to 32 and 64 bit versions of the header.
 	W::PIMAGE_NT_HEADERS32 pNTHeader = MakePtr(W::PIMAGE_NT_HEADERS32, dosHeader, dosHeader->e_lfanew);
-	if(pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
-		fprintf(stderr, "IMAGE_NT_OPTIONAL_HDR64_MAGIC not supported yet\n");
-		return false;
+
+	if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+		std::cerr << "64-bit header unsupported yet" << std::endl;
+		return -1;
 	}
 
 	W::PIMAGE_EXPORT_DIRECTORY pExportDir;
@@ -210,20 +215,18 @@ bool ProcessInfo::parseExportTable(W::PBYTE pImageBase, std::map<W::DWORD, std::
 
 	header = peGetEnclosingSectionHeader(exportsStartRVA, pNTHeader);
 	if (!header) {
-		fprintf(stderr, "Could not find Exports header!\n");
-		return false;
+		std::cerr << "Could not find exports header in PE!" << std::endl;
+		return -1;
 	}
 
 	pExportDir = (W::PIMAGE_EXPORT_DIRECTORY)peGetPtrFromRVA(exportsStartRVA, pNTHeader, pImageBase);
 	pdwFunctions = (W::PDWORD)peGetPtrFromRVA(pExportDir->AddressOfFunctions, pNTHeader, pImageBase);
 	pwOrdinals = (W::PWORD)peGetPtrFromRVA(pExportDir->AddressOfNameOrdinals, pNTHeader, pImageBase);
 	pszFuncNames = (W::PDWORD)peGetPtrFromRVA(pExportDir->AddressOfNames, pNTHeader, pImageBase);
-	
 	if (!pExportDir || !pdwFunctions || !pwOrdinals || !pszFuncNames) {
-		fprintf(stderr, "Some PE fields seem just not okay!\n");
-		return false;
+		std::cerr << "Some PE fields are just not okay!" << std::endl;
+		return -1;
 	}
-
 	size_t forwarders = 0, data = 0;
 	size_t unnamed = pExportDir->NumberOfFunctions - pExportDir->NumberOfNames;
 
@@ -249,5 +252,5 @@ bool ProcessInfo::parseExportTable(W::PBYTE pImageBase, std::map<W::DWORD, std::
 			rvaToFileOffsetMap.insert(std::make_pair(rva, fileOffset));
 		}
 	}
-	return true;
+	return 0;
 }

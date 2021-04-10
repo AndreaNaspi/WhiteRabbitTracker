@@ -1,6 +1,9 @@
 #pragma once
 
+#include <map>
+#include <iostream>
 #include "pin.H"
+#include "winheaders.h"
 
 /* ===================================================================== */
 /* Structure to store the DLLs interval tree                             */
@@ -8,18 +11,19 @@
 typedef struct itreenode {
 	ADDRINT start_addr, end_addr;   // range [a, b]
 	void *data;						// user-supplied data
+	void* exportsMap; // exports for the current DLL
 	struct itreenode *left, *right;	// left and right children
 } itreenode_t;
 
 /* ===================================================================== */
 /* Initialization function to create the interval tree                   */
 /* ===================================================================== */
-itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void* data);
+itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void* data, void* exportsMap);
 
 /* ===================================================================== */
 /* Function to insert left/right node in the interval tree               */
 /* ===================================================================== */
-bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void* data);
+bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void* data, void* exportsMap);
 
 /* ===================================================================== */
 /* Function to delete a node in the interval tree                        */
