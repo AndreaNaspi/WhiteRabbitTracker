@@ -39,13 +39,13 @@
 #include "pin.H"
 #include "libdft_config.h"
 
-/* [originally from BluePill] => host a bunch of useful fields */
 typedef struct {
 	THREADID		tid;
 	OS_THREAD_ID	os_tid;
-	uint8_t			tainted;
+	uint8_t			tainted; // need to understand if the current thread context is tainted
 	const char*		logname;
-	// TODO more stuff
+	UINT32          assert_type; // needed to understand which operands are tainted and which are not
+	ADDRINT offendingInstruction; // conditional branch analysis
 } taint_thread_info;
 
 

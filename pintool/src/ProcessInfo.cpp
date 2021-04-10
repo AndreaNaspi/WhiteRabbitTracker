@@ -90,6 +90,7 @@ void ProcessInfo::addCurrentImageToTree(IMG img) {
 		std::map<W::DWORD, W::DWORD> rvaToFileOffsetMap;
 		parseExportTable(data, imgStart, exportsMap, rvaToFileOffsetMap, false);
 
+		// If the interval tree does not exist, create it
 		if (gs->dllRangeITree == NULL) {
 			gs->dllRangeITree = itree_init(imgStart, imgEnd, (void*)data, (void*)&exportsMap);
 		}
@@ -109,17 +110,6 @@ void ProcessInfo::addCurrentImageToTree(IMG img) {
 			itree_print(gs->dllRangeITree, 0);
 			ASSERT(false, "Broken DLL interval tree");
 		}
-
-		/*
-		for (auto const& x : exportsMap)
-		{
-			std::cout << x.first  // string (key)
-				<< ':'
-				<< x.second // string's value 
-				<< std::endl;
-		}*/
-		// If the interval tree does not exist, create it
-
 	}
 	else {
 		free(data);
