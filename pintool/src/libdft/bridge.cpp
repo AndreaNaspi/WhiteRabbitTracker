@@ -1,5 +1,6 @@
 #include "pin.H"
 
+#include <string>
 #include "libdft_api.h"
 #include "tagmap.h"
 #include "bridge.h" 
@@ -65,18 +66,52 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 }
 
 /*
+Analysis function for conditional jump instructions. Here, offendingInstruction can be the
+possible instruction which affected this branch execution.
+
+@ipAddress
+@isBranchTaken: bool which tells if the instruction effectively jumps or not
+@targetAddress: target address of the jump
+*/
+static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT ipAddress, BOOL isBranchTaken, ADDRINT targetAddress, INS instruction, ADDRINT spAddress) {
+	// Access to global objects
+	State::globalState* gs = State::getGlobalState();
+	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+	std::string* fullIns = new std::string(INS_Disassemble(instruction));
+	std::string ins = (*fullIns).substr(0, (*fullIns).find(" "));
+	UINT8 alertType = 2;
+	// Check if we have an offending instruction and if program code
+	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, ipAddress) == NULL) {
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x 0x%08x [%d] %s\n", alertType, ipAddress, targetAddress, (int)TTINFO(tainted), (*fullIns).c_str());
+		// Reset the offending instruction
+		TTINFO(offendingInstruction) = 0;
+	}
+}
+
+/*
 * DTA/DFT alert
 *
 * @ins:	address of the offending instruction
 * @bt:  address of the branch target
 */
-static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, INS ins) {
+static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, INS instruction) {
 #if 1
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
-		// Check if we are in the program code (use itree search and check if not null)
+		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string* fullIns = new std::string(INS_Disassemble(instruction));
+		std::string ins = (*fullIns).substr(0, (*fullIns).find(" "));
+		UINT8 alertType = 1;
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
 		// If system code, log the tainted instruction one time
 		if (itree_search(gs->dllRangeITree, addr) != NULL) {
 			if (TTINFO(systemCode)) {
@@ -85,15 +120,16 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)node->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
-						logAlert(tdata, "0x%08x [%d] %s, %d, %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str(), (int)TTINFO(assert_type), 
-							                                        (exportsMap).lower_bound(addr)->second.c_str());
+						// Log the tainted instruction using a buffered logger
+						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), (*fullIns).c_str(), (int)TTINFO(assert_type),
+							                                            (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
 			goto END;
 		} 
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "0x%08x [%d] %s, %d\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str(), (int)TTINFO(assert_type));
+		logAlert(tdata, "%d; 0x%08x [%d] %s, %d\n", alertType, addr, (int)TTINFO(tainted), (*fullIns).c_str(), (int)TTINFO(assert_type));
 	}
 END:
 #else
@@ -104,8 +140,7 @@ END:
 	TTINFO(assert_type) = 0;
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_reg32(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_reg32(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	TTINFO(tainted) |= thread_ctx->vcpu.gpr[reg][0] |
 		thread_ctx->vcpu.gpr[reg][1] |
 		thread_ctx->vcpu.gpr[reg][2] |
@@ -123,8 +158,7 @@ assert_reg32(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_reg16(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_reg16(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	TTINFO(tainted) |= thread_ctx->vcpu.gpr[reg][0] |
 		thread_ctx->vcpu.gpr[reg][1];
 
@@ -140,8 +174,7 @@ assert_reg16(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_reg8(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_reg8(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	TTINFO(tainted) |= thread_ctx->vcpu.gpr[reg][0];
 
 	if (TTINFO(tainted)) {
@@ -156,8 +189,7 @@ assert_reg8(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem256(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem256(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr) | tagmap_getl(addr + 4) |
 		tagmap_getl(addr + 8) | tagmap_getl(addr + 12) |
 		tagmap_getl(addr + 16) | tagmap_getl(addr + 20) |
@@ -175,8 +207,7 @@ assert_mem256(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem128(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem128(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr) | tagmap_getl(addr + 4) |
 		tagmap_getl(addr + 8) | tagmap_getl(addr + 12);
 
@@ -192,8 +223,7 @@ assert_mem128(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem64(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem64(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr) | tagmap_getl(addr + 4);
 
 	if (TTINFO(tainted)) {
@@ -208,8 +238,7 @@ assert_mem64(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem32(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem32(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr);
 
 	if (TTINFO(tainted)) {
@@ -224,8 +253,7 @@ assert_mem32(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem16(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem16(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getw(addr);
 
 	if (TTINFO(tainted)) {
@@ -240,8 +268,7 @@ assert_mem16(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem8(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem8(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getb(addr);
 
 	if (TTINFO(tainted)) {
@@ -256,8 +283,7 @@ assert_mem8(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	}
 }
 
-static void PIN_FAST_ANALYSIS_CALL
-assert_mem_generic(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 size, UINT32 opidx) {
+static void PIN_FAST_ANALYSIS_CALL assert_mem_generic(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 size, UINT32 opidx) {
 	ASSERT(size % 4 == 0, "Unaligned memory access?");
 	for (UINT32 i = 0; i < size / 4; i++)
 		TTINFO(tainted) |= tagmap_getl(addr + 4 * i);
@@ -283,6 +309,22 @@ void instrumentForTaintCheck(INS ins) {
 	if (ins_indx <= XED_ICLASS_INVALID || ins_indx >= XED_ICLASS_LAST) {
 		std::cerr << "Unexpected instruction during taint check: " << INS_Disassemble(ins).c_str();
 		return;
+	}
+
+	// Instrument conditional jump instructions for control flow checks
+	if (INS_Category(ins) == XED_CATEGORY_COND_BR) {
+		INS_InsertCall(
+			ins,
+			IPOINT_BEFORE,
+			(AFUNPTR)condBranchAnalysis,
+			IARG_FAST_ANALYSIS_CALL,
+			IARG_REG_VALUE, thread_ctx_ptr,
+			IARG_INST_PTR, // ip of the instruction
+			IARG_BRANCH_TAKEN,
+			IARG_BRANCH_TARGET_ADDR, // target of conditional jump
+			IARG_PTR, ins, // disassembly string of the instruction
+			IARG_REG_VALUE, REG_STACK_PTR, // SP before ins is executed
+			IARG_END);
 	}
 
 	// The instruction does not have read operands
