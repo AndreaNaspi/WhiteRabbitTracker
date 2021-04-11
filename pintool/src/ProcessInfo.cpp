@@ -85,18 +85,22 @@ void ProcessInfo::addCurrentImageToTree(IMG img) {
 		PIN_LockClient();
 		State::globalState* gs = State::getGlobalState();
 
-		// Parse the export table of the current image
-		std::map<W::DWORD, std::string> exportsMap;
-		std::map<W::DWORD, W::DWORD> rvaToFileOffsetMap;
+		// Parse the export table of the current image and store in global variable
+		std::map<W::DWORD, std::string> exportsMap = std::map<W::DWORD, std::string>();
+		std::map<W::DWORD, W::DWORD> rvaToFileOffsetMap = std::map<W::DWORD, W::DWORD>();
 		parseExportTable(data, imgStart, exportsMap, rvaToFileOffsetMap, false);
+		gs->dllExports.push_back(monitoredDLL());
+		monitoredDLL &dll = gs->dllExports.back();
+		dll.dllPath = (void*)data;
+		dll.exports = exportsMap;
 
 		// If the interval tree does not exist, create it
 		if (gs->dllRangeITree == NULL) {
-			gs->dllRangeITree = itree_init(imgStart, imgEnd, (void*)data, (void*)&exportsMap);
+			gs->dllRangeITree = itree_init(imgStart, imgEnd, (void*)data);
 		}
 		// Else, add the current image to the interval tree
 		else {
-			bool success = itree_insert(gs->dllRangeITree, imgStart, imgEnd, (void*)data, (void*)&exportsMap);
+			bool success = itree_insert(gs->dllRangeITree, imgStart, imgEnd, (void*)data);
 			// Check for possible error
 			if (!success) {
 				fprintf(stderr, "==> Duplicate range insertion for DLL %s\n", data);
@@ -238,7 +242,7 @@ bool ProcessInfo::parseExportTable(const char* dllPath, ADDRINT baseAddress, std
 		W::DWORD fileOffset = (rva - section->VirtualAddress + section->PointerToRawData);
 
 		if (section->Characteristics & IMAGE_SCN_CNT_CODE) {
-			exportsMap.insert(std::make_pair(rva, name));
+			exportsMap.insert(std::make_pair(baseAddress + rva, name));
 			rvaToFileOffsetMap.insert(std::make_pair(rva, fileOffset));
 		}
 	}

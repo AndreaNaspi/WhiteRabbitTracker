@@ -25,6 +25,7 @@ namespace State {
 		State::globalState* gs = State::getGlobalState();
 		gs->_timeInfo.tick = 3478921;
 		gs->_timeInfo._edx_eax = 0x6000000002346573ULL;
+		gs->dllExports = std::vector<monitoredDLL>();
 	}
 
 	/* ===================================================================== */

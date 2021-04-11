@@ -46,7 +46,7 @@ namespace SYSHOOKS {
 				}
 			}
 			// High false positive rate, taint only suspicious files
-			addTaintMemory((ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
+			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
 		}
 	}
 
@@ -78,7 +78,7 @@ namespace SYSHOOKS {
 			// Taint registry handler
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			// High false positive rate, taint only suspicious registry access
-			addTaintMemory((ADDRINT)khandle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtOpenKey");
+			addTaintMemory(ctx, (ADDRINT)khandle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtOpenKey");
 		}
 	}
 
@@ -103,7 +103,7 @@ namespace SYSHOOKS {
 					logModule->logBypass("NtQueryInformationProcess ProcessDebugFlags");
 					*((W::ULONG *)ProcessInformation) = PROCESS_DEBUG_INHERIT;
 				}
-				addTaintMemory((ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugFlags");
+				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugFlags");
 			}
 			else if (ProcessInformationClass == ProcessDebugObjectHandle) {
 				// Set return value to STATUS_PORT_NOT_SET
@@ -113,7 +113,7 @@ namespace SYSHOOKS {
 					ADDRINT _eax = CODEFORSTATUSPORTNOTSET;
 					PIN_SetContextReg(ctx, REG_GAX, _eax);
 				}
-				addTaintMemory((ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugObjectHandle");
+				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugObjectHandle");
 			}
 			else if (ProcessInformationClass == ProcessDebugPort) {
 				// Set debug port to null
@@ -121,7 +121,7 @@ namespace SYSHOOKS {
 					logModule->logBypass("NtQueryInformationProcess ProcessDebugPort");
 					*((W::HANDLE *)ProcessInformation) = (W::HANDLE)0;
 				}
-				addTaintMemory((ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugPort");
+				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugPort");
 			}
 			if (backupReturnLength != 0) {
 				*ReturnLength = backupReturnLength;
@@ -177,7 +177,7 @@ namespace SYSHOOKS {
 					}
 				}
 
-				addTaintMemory((ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
+				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
 		}
 	}

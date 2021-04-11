@@ -36,6 +36,7 @@ namespace State {
 		W::SHORT flagStep;
 		W::BOOL waitForDebugger;
 		itreenode_t* dllRangeITree;
+		std::vector<monitoredDLL> dllExports;
 		ADDRINT cpuid_eax;
 		ADDRINT* pointerToLpidProcess;
 		ADDRINT* pointerToBytesLpidProcess;

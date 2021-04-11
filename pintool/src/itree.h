@@ -11,19 +11,23 @@
 typedef struct itreenode {
 	ADDRINT start_addr, end_addr;   // range [a, b]
 	void *data;						// user-supplied data
-	void* exportsMap; // exports for the current DLL
 	struct itreenode *left, *right;	// left and right children
 } itreenode_t;
+
+typedef struct {
+	void* dllPath;
+	std::map<W::DWORD, std::string> exports;
+} monitoredDLL;
 
 /* ===================================================================== */
 /* Initialization function to create the interval tree                   */
 /* ===================================================================== */
-itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void* data, void* exportsMap);
+itreenode_t *itree_init(ADDRINT start_addr, ADDRINT end_addr, void* data);
 
 /* ===================================================================== */
 /* Function to insert left/right node in the interval tree               */
 /* ===================================================================== */
-bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void* data, void* exportsMap);
+bool itree_insert(itreenode_t *tree, ADDRINT start_addr, ADDRINT end_addr, void* data);
 
 /* ===================================================================== */
 /* Function to delete a node in the interval tree                        */

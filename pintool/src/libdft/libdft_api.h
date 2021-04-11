@@ -45,7 +45,8 @@ typedef struct {
 	uint8_t			tainted; // need to understand if the current thread context is tainted
 	const char*		logname;
 	UINT32          assert_type; // needed to understand which operands are tainted and which are not
-	ADDRINT offendingInstruction; // conditional branch analysis
+	ADDRINT         offendingInstruction; // conditional branch analysis
+	int             systemCode; // check if we need to alert instruction in system code
 } taint_thread_info;
 
 

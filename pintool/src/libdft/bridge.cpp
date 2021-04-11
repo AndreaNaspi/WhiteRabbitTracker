@@ -20,6 +20,8 @@ void addTaintRegister(thread_ctx_t *thread_ctx, int gpr, tag_t tags[], bool rese
 			t |= src_tag[i];
 		RTAG[gpr][i] = t;
 	}
+	// Alert next instruction in system code
+	TTINFO(systemCode) = 1;
 }
 
 void clearTaintRegister(thread_ctx_t *thread_ctx, int gpr) {
@@ -36,7 +38,7 @@ void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size) {
 	}
 }
 
-void addTaintMemory(ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName) {
+void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName) {
 	// Check if the program is 64-bit
 	ASSERT(sizeof(ADDRINT) == sizeof(UINT32), "64-bit mode not supported yet");
 	// Check if the pointer is 0 or NULL (check address)
@@ -49,6 +51,9 @@ void addTaintMemory(ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::strin
 		if (!reset) t |= tagmap_getb(addr + i);
 		tagmap_setb_with_tag(addr + i, t);
 	}
+	// Alert next instruction in system code
+	thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr);
+	TTINFO(systemCode) = 1;
 }
 
 void clearTaintMemory(ADDRINT addr, UINT32 size) {
@@ -71,88 +76,223 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 	if (TTINFO(tainted)) {
 		// Check if we are in the program code (use itree search and check if not null)
 		State::globalState* gs = State::getGlobalState();
-		// set a static variable to 1 to check the called API by export table
-		// set to 0 when == NULL
-		if (itree_search(gs->dllRangeITree, addr) != NULL)
-			goto END;
-		// Log the tainted instruction using a buffered logger
 		pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		logAlert(tdata, "0x%08x [%d] %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str());
+		// If system code, log the tainted instruction one time
+		if (itree_search(gs->dllRangeITree, addr) != NULL) {
+			if (TTINFO(systemCode)) {
+				TTINFO(systemCode) = 0;
+				itreenode_t* node = itree_search(gs->dllRangeITree, addr);
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)node->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						logAlert(tdata, "0x%08x [%d] %s, %d, %s\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str(), (int)TTINFO(assert_type), 
+							                                        (exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		} 
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "0x%08x [%d] %s, %d\n", addr, (int)TTINFO(tainted), INS_Disassemble(ins).c_str(), (int)TTINFO(assert_type));
 	}
 END:
 #else
 }
 #endif
-	// Clear text context from the taint
+	// Clear thread context from the taint
 	TTINFO(tainted) = 0;
+	TTINFO(assert_type) = 0;
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_reg32(thread_ctx_t *thread_ctx, UINT32 reg) {
+assert_reg32(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	TTINFO(tainted) |= thread_ctx->vcpu.gpr[reg][0] |
 		thread_ctx->vcpu.gpr[reg][1] |
 		thread_ctx->vcpu.gpr[reg][2] |
 		thread_ctx->vcpu.gpr[reg][3];
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand (register) is tainted ... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) { 
+			thread_ctx->ttinfo.assert_type += 2;
+		}
+		// The only case is that assert_type = 0 ==> first operand (register) is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 1;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_reg16(thread_ctx_t *thread_ctx, UINT32 reg) {
+assert_reg16(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	TTINFO(tainted) |= thread_ctx->vcpu.gpr[reg][0] |
 		thread_ctx->vcpu.gpr[reg][1];
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand (register) is tainted ... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 2;
+		}
+		// The only case is that assert_type = 0 ==> first operand (register) is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 1;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_reg8(thread_ctx_t *thread_ctx, UINT32 reg) { 
+assert_reg8(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
 	TTINFO(tainted) |= thread_ctx->vcpu.gpr[reg][0];
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand (register) is tainted ... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 2;
+		}
+		// The only case is that assert_type = 0 ==> first operand (register) is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 1;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem256(thread_ctx_t *thread_ctx, UINT32 addr) {
+assert_mem256(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr) | tagmap_getl(addr + 4) |
 		tagmap_getl(addr + 8) | tagmap_getl(addr + 12) |
 		tagmap_getl(addr + 16) | tagmap_getl(addr + 20) |
 		tagmap_getl(addr + 24) | tagmap_getl(addr + 28);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) { 
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem128(thread_ctx_t *thread_ctx, UINT32 addr) {
+assert_mem128(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr) | tagmap_getl(addr + 4) |
 		tagmap_getl(addr + 8) | tagmap_getl(addr + 12);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem64(thread_ctx_t *thread_ctx, UINT32 addr) {
+assert_mem64(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr) | tagmap_getl(addr + 4);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem32(thread_ctx_t *thread_ctx, UINT32 addr) {
+assert_mem32(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getl(addr);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem16(thread_ctx_t *thread_ctx, UINT32 addr) {
+assert_mem16(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getw(addr);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem8(thread_ctx_t *thread_ctx, UINT32 addr) {
+assert_mem8(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 opidx) {
 	TTINFO(tainted) |= tagmap_getb(addr);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-assert_mem_generic(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 size) {
+assert_mem_generic(thread_ctx_t *thread_ctx, UINT32 addr, UINT32 size, UINT32 opidx) {
 	ASSERT(size % 4 == 0, "Unaligned memory access?");
 	for (UINT32 i = 0; i < size / 4; i++)
 		TTINFO(tainted) |= tagmap_getl(addr + 4 * i);
+
+	if (TTINFO(tainted)) {
+		// Either only the second operand is tainted... or also the first one is tainted
+		if ((thread_ctx->ttinfo.assert_type == 0 && opidx == 1) || thread_ctx->ttinfo.assert_type != 0) {
+			thread_ctx->ttinfo.assert_type += 8;
+		}
+		// The only case is that assert_type = 0 ==> first operand is tainted
+		else {
+			thread_ctx->ttinfo.assert_type += 4;
+		}
+	}
 }
 
 void instrumentForTaintCheck(INS ins) {
-	// The instruction does not have read operands
-	if (INS_MaxNumRRegs(ins) == 0) return; 
+	// Initialize instruction operands and instruction opcode
+	REG reg_op0, reg_op1;
+	xed_iclass_enum_t ins_indx = (xed_iclass_enum_t)INS_Opcode(ins);
 
+	// Sanity check for unexpected instructions
+	if (ins_indx <= XED_ICLASS_INVALID || ins_indx >= XED_ICLASS_LAST) {
+		std::cerr << "Unexpected instruction during taint check: " << INS_Disassemble(ins).c_str();
+		return;
+	}
+
+	// The instruction does not have read operands
+	if (INS_MaxNumRRegs(ins) == 0) 
+		return; 
+
+	// Get instruction operands
 	UINT32 operands = INS_OperandCount(ins);
-	//Titerate over registers
+
+	// Iterate over registers
 	for (UINT32 opIdx = 0; opIdx < operands; ++opIdx) {
 		if (INS_OperandIsReg(ins, opIdx) && INS_OperandRead(ins, opIdx)) {
 			REG reg = INS_OperandReg(ins, opIdx);
@@ -165,6 +305,7 @@ void instrumentForTaintCheck(INS ins) {
 					thread_ctx_ptr,
 					IARG_UINT32,
 					REG32_INDX(reg),
+					IARG_UINT32, opIdx,
 					IARG_END);
 			}
 			else if (REG_is_gr16(reg)) {
@@ -176,6 +317,7 @@ void instrumentForTaintCheck(INS ins) {
 					thread_ctx_ptr,
 					IARG_UINT32,
 					REG16_INDX(reg),
+					IARG_UINT32, opIdx,
 					IARG_END);
 			}
 			else if (REG_is_gr8(reg)) {
@@ -187,6 +329,7 @@ void instrumentForTaintCheck(INS ins) {
 					thread_ctx_ptr,
 					IARG_UINT32,
 					REG8_INDX(reg),
+					IARG_UINT32, opIdx,
 					IARG_END);
 			}
 		}
@@ -200,24 +343,61 @@ void instrumentForTaintCheck(INS ins) {
 		if (INS_MemoryOperandIsRead(ins, memOpIdx)) {
 			USIZE opSize = INS_MemoryOperandSize(ins, memOpIdx);
 			AFUNPTR assert_mem = NULL;
+			UINT32 myOpIdx;
 			switch (opSize) {
 			case 32:
 				assert_mem = (AFUNPTR)assert_mem256;
+				if (!INS_OperandIsMemory(ins, 0)) {
+					myOpIdx = 1;
+				}
+				else {
+					myOpIdx = memOpIdx;
+				}
 				break;
 			case 16:
 				assert_mem = (AFUNPTR)assert_mem128;
+				if (!INS_OperandIsMemory(ins, 0)) {
+					myOpIdx = 1;
+				}
+				else {
+					myOpIdx = memOpIdx;
+				}
 				break;
 			case 8:
 				assert_mem = (AFUNPTR)assert_mem64;
+				if (!INS_OperandIsMemory(ins, 0)) {
+					myOpIdx = 1;
+				}
+				else {
+					myOpIdx = memOpIdx;
+				}
 				break;
 			case 4:
 				assert_mem = (AFUNPTR)assert_mem32;
+				if (!INS_OperandIsMemory(ins, 0)) {
+					myOpIdx = 1;
+				}
+				else {
+					myOpIdx = memOpIdx;
+				}
 				break;
 			case 2:
 				assert_mem = (AFUNPTR)assert_mem16;
+				if (!INS_OperandIsMemory(ins, 0)) {
+					myOpIdx = 1;
+				}
+				else {
+					myOpIdx = memOpIdx;
+				}
 				break;
 			case 1:
 				assert_mem = (AFUNPTR)assert_mem8;
+				if (!INS_OperandIsMemory(ins, 0)) {
+					myOpIdx = 1;
+				}
+				else {
+					myOpIdx = memOpIdx;
+				}
 				break;
 			default:
 				std::cerr << "Unknown memory read size: " << opSize << std::endl;
@@ -231,6 +411,8 @@ void instrumentForTaintCheck(INS ins) {
 					thread_ctx_ptr,
 					IARG_MEMORYOP_EA,
 					memOpIdx,
+					IARG_UINT32,
+					myOpIdx, //Added to understand qhich operand we are talking about when assert is issued 
 					IARG_END);
 			}
 			else {
@@ -244,6 +426,8 @@ void instrumentForTaintCheck(INS ins) {
 					memOpIdx,
 					IARG_UINT32,
 					opSize,
+					IARG_UINT32,
+					myOpIdx, //Added to understand qhich operand we are talking about when assert is issued 
 					IARG_END);
 			}
 		}
