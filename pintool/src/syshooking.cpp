@@ -250,5 +250,4 @@ namespace SYSHOOKING {
 		PIN_AddSyscallEntryFunction(&SyscallEntry, NULL);
 		PIN_AddSyscallExitFunction(&SyscallExit, NULL);
 	}
-
 }

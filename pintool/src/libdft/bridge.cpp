@@ -21,8 +21,6 @@ void addTaintRegister(thread_ctx_t *thread_ctx, int gpr, tag_t tags[], bool rese
 			t |= src_tag[i];
 		RTAG[gpr][i] = t;
 	}
-	// Alert next instruction in system code
-	TTINFO(systemCode) = 1;
 }
 
 void clearTaintRegister(thread_ctx_t *thread_ctx, int gpr) {
@@ -54,7 +52,6 @@ void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool res
 	}
 	// Alert next instruction in system code
 	thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr);
-	TTINFO(systemCode) = 1;
 }
 
 void clearTaintMemory(ADDRINT addr, UINT32 size) {
@@ -73,17 +70,16 @@ possible instruction which affected this branch execution.
 @isBranchTaken: bool which tells if the instruction effectively jumps or not
 @targetAddress: target address of the jump
 */
-static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT ipAddress, BOOL isBranchTaken, ADDRINT targetAddress, INS instruction, ADDRINT spAddress) {
+static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT ipAddress, BOOL isBranchTaken, ADDRINT targetAddress, std::string *ins_str, ADDRINT spAddress) {
 	// Access to global objects
 	State::globalState* gs = State::getGlobalState();
 	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-	std::string* fullIns = new std::string(INS_Disassemble(instruction));
-	std::string ins = (*fullIns).substr(0, (*fullIns).find(" "));
+	std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
 	UINT8 alertType = 2;
 	// Check if we have an offending instruction and if program code
 	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, ipAddress) == NULL) {
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x 0x%08x [%d] %s\n", alertType, ipAddress, targetAddress, (int)TTINFO(tainted), (*fullIns).c_str());
+		logAlert(tdata, "%d; 0x%08x 0x%08x [%d] %s\n", alertType, ipAddress, targetAddress, (int)TTINFO(tainted), (*ins_str).c_str());
 		// Reset the offending instruction
 		TTINFO(offendingInstruction) = 0;
 	}
@@ -95,15 +91,14 @@ static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, 
 * @ins:	address of the offending instruction
 * @bt:  address of the branch target
 */
-static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, INS instruction) {
+static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, std::string *ins_str) {
 #if 1
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string* fullIns = new std::string(INS_Disassemble(instruction));
-		std::string ins = (*fullIns).substr(0, (*fullIns).find(" "));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
 		UINT8 alertType = 1;
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -121,15 +116,18 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)node->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
 						// Log the tainted instruction using a buffered logger
-						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), (*fullIns).c_str(), (int)TTINFO(assert_type),
+						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), (int)TTINFO(assert_type),
 							                                            (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
 			goto END;
-		} 
+		}
+		else {
+			TTINFO(systemCode) = 1;
+		}
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x [%d] %s, %d\n", alertType, addr, (int)TTINFO(tainted), (*fullIns).c_str(), (int)TTINFO(assert_type));
+		logAlert(tdata, "%d; 0x%08x [%d] %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), (int)TTINFO(assert_type));
 	}
 END:
 #else
@@ -304,6 +302,7 @@ void instrumentForTaintCheck(INS ins) {
 	// Initialize instruction operands and instruction opcode
 	REG reg_op0, reg_op1;
 	xed_iclass_enum_t ins_indx = (xed_iclass_enum_t)INS_Opcode(ins);
+	std::string *ins_str = new std::string(INS_Disassemble(ins));
 
 	// Sanity check for unexpected instructions
 	if (ins_indx <= XED_ICLASS_INVALID || ins_indx >= XED_ICLASS_LAST) {
@@ -322,7 +321,7 @@ void instrumentForTaintCheck(INS ins) {
 			IARG_INST_PTR, // ip of the instruction
 			IARG_BRANCH_TAKEN,
 			IARG_BRANCH_TARGET_ADDR, // target of conditional jump
-			IARG_PTR, ins, // disassembly string of the instruction
+			IARG_PTR, ins_str, // disassembly string of the instruction
 			IARG_REG_VALUE, REG_STACK_PTR, // SP before ins is executed
 			IARG_END);
 	}
@@ -485,7 +484,7 @@ end:
 		thread_ctx_ptr,
 		IARG_INST_PTR,
 		IARG_PTR,
-		ins,
+		ins_str,
 		IARG_END);
 	return;
 }

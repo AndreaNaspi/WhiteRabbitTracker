@@ -121,7 +121,6 @@ namespace SYSHOOKS {
 					logModule->logBypass("NtQueryInformationProcess ProcessDebugPort");
 					*((W::HANDLE *)ProcessInformation) = (W::HANDLE)0;
 				}
-				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugPort");
 			}
 			if (backupReturnLength != 0) {
 				*ReturnLength = backupReturnLength;
