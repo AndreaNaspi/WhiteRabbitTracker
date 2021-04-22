@@ -75,7 +75,8 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 		// Traverse all the instructions in the BBL 
 		for (ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
 			// Check for special instructions (cpuid, rdtsc, int and in) to avoid VM/sandbox detection and taint memory
-			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
+			std::string *ins_str = new std::string(INS_Disassemble(ins));
+			specialInstructionsHandlerInfo->checkSpecialInstruction(ins, ins_str);
 			if (_knobApiTracing) {
 				// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
 				if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
@@ -262,7 +263,7 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	// Initialize other fields
 	TTINFO(assert_type) = 0;
 	TTINFO(offendingInstruction) = 0;
-	TTINFO(systemCode) = 0;
+	TTINFO(logTaintedSystemCode) = 0;
 	// Undefine thread informations (used later in bridge.cpp for libdft tainting)
 	#undef TTINFO
 	// Initialize buffered logger for the current thread

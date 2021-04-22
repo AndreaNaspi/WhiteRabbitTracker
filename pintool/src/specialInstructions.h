@@ -39,7 +39,7 @@ public:
 	/* ===================================================================== */
 	/* Function to check for specific special instruction and insert handlers*/
 	/* ===================================================================== */
-	static void checkSpecialInstruction(INS ins);
+	static void checkSpecialInstruction(INS ins, string* ins_str);
 
 	/* ===================================================================== */
 	/* Function to handle and log the cpuid instruction                      */

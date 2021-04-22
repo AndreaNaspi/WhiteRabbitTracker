@@ -67,7 +67,7 @@ void SpecialInstructionsHandler::regInit(REGSET* regsIn, REGSET* regsOut) {
 /* ===================================================================== */
 /* Function to check for specific special instruction and insert handlers*/
 /* ===================================================================== */
-void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
+void SpecialInstructionsHandler::checkSpecialInstruction(INS ins, string* ins_str) {
 	static int insCount = 0;
 	ExceptionHandler *eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler* specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
@@ -84,7 +84,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 		}
 	}
 	// Get disassembled instruction
-	std::string diassembled_ins = INS_Disassemble(ins);
+	std::string diassembled_ins = *ins_str;
 	// Initialize registries for possible IARG_PARTIAL_CONTEXT
 	REGSET regsIn, regsOut;
 	// Get instruction address
