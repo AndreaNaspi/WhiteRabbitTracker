@@ -40,7 +40,9 @@ namespace SYSHOOKS {
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
 				if (_knobBypass) {
-					logModule->logBypass("NtCreateFile");
+					char logName[256] = "NtCreateFile ";
+					strcat(logName, value);
+					logModule->logBypass(logName);
 					memcpy((char *)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 					PIN_SafeCopy((char *)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 				}
@@ -69,7 +71,9 @@ namespace SYSHOOKS {
 		if (HiddenElements::shouldHideRegOpenKeyStr(value)) {
 			// Free right handle
 			if (_knobBypass) {
-				logModule->logBypass("NtOpenKey");
+				char logName[256] = "NtOpenKey ";
+				strcat(logName, value);
+				logModule->logBypass(logName);
 				W::CloseHandle(*khandle);
 				*khandle = (W::HANDLE) - 1;
 				ADDRINT _eax = CODEFORINVALIDHANDLE;
@@ -144,8 +148,8 @@ namespace SYSHOOKS {
 				char vbox[] = { "VirtualBox" };
 				char vbox2[] = { "vbox" };
 				char vbox3[] = { "VBOX" };
-				char escape[] = { "          " };
-				char escape2[] = { "    " };
+				char escape[] = { "aaaaaaaaaa" };
+				char escape2[] = { "aaaa" };
 				W::ULONG sizeVbox = (W::ULONG)Helper::_strlen_a(vbox);
 				W::ULONG sizeVbox2 = (W::ULONG)Helper::_strlen_a(vbox2);
 				W::ULONG sizeVbox3 = (W::ULONG)Helper::_strlen_a(vbox3);
@@ -166,7 +170,7 @@ namespace SYSHOOKS {
 
 				// VMware part
 				char vmware[] = { "VMware" };
-				char escape3[] = { "      " };
+				char escape3[] = { "aaaaaa" };
 				W::ULONG vmwareSize = (W::ULONG)Helper::_strlen_a(vmware);
 
 				logModule->logBypass("NtQuerySystemInformation VMware");

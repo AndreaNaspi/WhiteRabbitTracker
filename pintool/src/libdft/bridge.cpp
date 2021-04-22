@@ -108,12 +108,12 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 			TTINFO(offendingInstruction) = 0;
 		}
 		// If system code, log the tainted instruction one time
-		if (itree_search(gs->dllRangeITree, addr) != NULL) {
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
 			if (TTINFO(systemCode)) {
 				TTINFO(systemCode) = 0;
-				itreenode_t* node = itree_search(gs->dllRangeITree, addr);
 				for (int i = 0; i < gs->dllExports.size(); i++) {
-					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)node->data) == 0) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
 						// Log the tainted instruction using a buffered logger
 						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), (int)TTINFO(assert_type),
