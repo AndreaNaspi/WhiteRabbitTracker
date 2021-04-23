@@ -63,6 +63,25 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 }
 
 /*
+Check which operands are tainted using the thread-context variables TTINFO(firstOperandTainted) and TTINFO(secondOperandTainted)
+return values:
+	1 = only first operand tainted
+	2 = only second operand tainted
+	3 = both operands tainted
+*/
+int checkWhichOperandsAreTainted(thread_ctx_t *thread_ctx) {
+	if (TTINFO(firstOperandTainted) && TTINFO(secondOperandTainted)) {
+		return 3;
+	}
+	else if (TTINFO(firstOperandTainted) && !TTINFO(secondOperandTainted)) {
+		return 1;
+	}
+	else {
+		return 2;
+	}
+}
+
+/*
 Analysis function for conditional jump instructions. Here, offendingInstruction can be the
 possible instruction which affected this branch execution.
 
@@ -79,7 +98,7 @@ static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, 
 	// Check if we have an offending instruction and if program code
 	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, ipAddress) == NULL) {
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x 0x%08x [%d] %s\n", alertType, ipAddress, targetAddress, (int)TTINFO(tainted), (*ins_str).c_str());
+		logAlert(tdata, "%d; 0x%08x 0x%08x %s\n", alertType, ipAddress, targetAddress, (*ins_str).c_str());
 		// Reset the offending instruction
 		TTINFO(offendingInstruction) = 0;
 	}
@@ -107,6 +126,8 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 		else {
 			TTINFO(offendingInstruction) = 0;
 		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
@@ -116,7 +137,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
 						// Log the tainted instruction using a buffered logger
-						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), (int)TTINFO(assert_type),
+						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), operandsTainted,
 							                                            (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
@@ -127,7 +148,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 			TTINFO(logTaintedSystemCode) = 1;
 		}
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x [%d] %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), (int)TTINFO(assert_type));
+		logAlert(tdata, "%d; 0x%08x [%d] %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), operandsTainted);
 	}
 END:
 #else
@@ -135,7 +156,8 @@ END:
 #endif
 	// Clear thread context from the taint
 	TTINFO(tainted) = 0;
-	TTINFO(assert_type) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
 }
 
 static void PIN_FAST_ANALYSIS_CALL assert_reg32(thread_ctx_t *thread_ctx, UINT32 reg, UINT32 opidx) {
@@ -144,7 +166,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_reg32(thread_ctx_t *thread_ctx, UINT32
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -154,7 +181,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_reg16(thread_ctx_t *thread_ctx, UINT32
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -164,7 +196,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_reg8(thread_ctx_t *thread_ctx, UINT32 
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -176,7 +213,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem256(thread_ctx_t *thread_ctx, UINT3
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -186,7 +228,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem128(thread_ctx_t *thread_ctx, UINT3
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -196,7 +243,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem64(thread_ctx_t *thread_ctx, UINT32
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -206,7 +258,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem32(thread_ctx_t *thread_ctx, UINT32
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -216,7 +273,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem16(thread_ctx_t *thread_ctx, UINT32
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -226,7 +288,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem8(thread_ctx_t *thread_ctx, UINT32 
 
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 
@@ -239,7 +306,12 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem_generic(thread_ctx_t *thread_ctx, 
 	}
 	// Check how many operands are tainted
 	if (TTINFO(tainted) && ((int)taintResult) != 0) {
-		TTINFO(assert_type) += 1;
+		if (opidx == 0) {
+			TTINFO(firstOperandTainted) = 1;
+		}
+		else if (opidx == 1) {
+			TTINFO(secondOperandTainted) = 1;
+		}
 	}
 }
 

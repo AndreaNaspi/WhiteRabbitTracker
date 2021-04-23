@@ -261,7 +261,8 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	// Retrieve OS thread ID
 	TTINFO(os_tid) = PIN_GetTid();
 	// Initialize other fields
-	TTINFO(assert_type) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
 	TTINFO(offendingInstruction) = 0;
 	TTINFO(logTaintedSystemCode) = 0;
 	// Undefine thread informations (used later in bridge.cpp for libdft tainting)
