@@ -56,6 +56,9 @@
     <ClCompile Include="src\bufferLoggingInfo.cpp">
       <Filter>Source files</Filter>
     </ClCompile>
+    <ClCompile Include="src\disassembler.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source files">
@@ -137,6 +140,9 @@
       <Filter>Header files</Filter>
     </ClInclude>
     <ClInclude Include="src\bufferLoggingInfo.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\disassembler.h">
       <Filter>Header files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -12,6 +12,7 @@
 #include "HiddenElements.h"
 #include "helper.h"
 #include "syshooking.h"
+#include "disassembler.h"
 using std::cerr;
 using std::ofstream;
 using std::ios;

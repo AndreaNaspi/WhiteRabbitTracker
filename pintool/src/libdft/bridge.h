@@ -10,6 +10,10 @@ using std::cerr;
 #define R32TAG(RIDX) \
     {RTAG[(RIDX)][0], RTAG[(RIDX)][1], RTAG[(RIDX)][2], RTAG[(RIDX)][3]}
 
+#define OP_0 0
+#define OP_1 1
+#define OP_NA "NA"
+
 extern REG thread_ctx_ptr;
 
 void instrumentForTaintCheck(INS ins);

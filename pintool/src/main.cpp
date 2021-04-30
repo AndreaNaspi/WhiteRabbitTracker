@@ -4,6 +4,7 @@
 #pragma once
 #include "main.h"
 
+
 /* ================================================================== */
 /* Global variables                                                   */ 
 /* ================================================================== */
@@ -249,7 +250,7 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	// TLS handling
 	pintool_tls* tdata = new pintool_tls;
 	if (PIN_SetThreadData(tls_key, tdata, tid) == FALSE) {
-		std::cerr << "Cannot initialize the TLS key for the thread " + tid << std::endl;
+		std::cerr << "Cannot initialize the TLS key for the thread " + tid << "!" << std::endl;
 		PIN_ExitProcess(1);
 	}
 	// Initialize libdft thread context
@@ -307,7 +308,7 @@ EXCEPT_HANDLING_RESULT internalExceptionHandler(THREADID tid, EXCEPTION_INFO *pE
 /* Print Help Message (usage message)                                    */
 /* ===================================================================== */
 INT32 Usage() {
-	cerr << "This tool counts the number of dynamic instructions executed" << endl;
+	cerr << "Hi there :-) Have fun with some Dynamic Taint Analysis!\n" << endl;
 	cerr << endl << KNOB_BASE::StringKnobSummary() << endl;
 	return -1;
 }
@@ -368,7 +369,7 @@ int main(int argc, char * argv[]) {
 	// Obtain a TLS key
 	tls_key = PIN_CreateThreadDataKey(NULL);
 	if (tls_key == INVALID_TLS_KEY) {
-		std::cerr << "cannot initialize TLS" << std::endl;;
+		std::cerr << "Cannot initialize TLS key!" << std::endl;
 		PIN_ExitProcess(1);
 	}
 
@@ -409,10 +410,16 @@ int main(int argc, char * argv[]) {
 	// Initialize libdft engine
 	if (libdft_init_data_only()) {
 		std::cerr << "Error during libdft initialization!" << std::endl;
-		return EXIT_FAILURE;
+		PIN_ExitProcess(1);
 	}
 
-	// Welcome message :)
+	// Initialize disassembler module
+	if (initializeDisassembler()) {
+		std::cerr << "Error during disassembler module initialization!" << std::endl;
+		PIN_ExitProcess(1);
+	}
+
+	// Welcome message :-)
 	std::cerr << "===============================================" << std::endl;
 	std::cerr << "This application is instrumented by " << TOOL_NAME << " v." << VERSION << std::endl;
 	std::cerr << "Profiling module " << appName << std::endl;

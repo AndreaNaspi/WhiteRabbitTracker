@@ -94,29 +94,24 @@ static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, 
 	State::globalState* gs = State::getGlobalState();
 	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
 	std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
-	UINT8 alertType = 2;
+	UINT8 alertType = 10;
 	// Check if we have an offending instruction and if program code
 	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, ipAddress) == NULL) {
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x 0x%08x %s\n", alertType, ipAddress, targetAddress, (*ins_str).c_str());
+		logAlert(tdata, "%d; 0x%08x 0x%08x %s\n", alertType, ipAddress, targetAddress, ins.c_str());
 		// Reset the offending instruction
 		TTINFO(offendingInstruction) = 0;
 	}
 }
 
-/*
-* DTA/DFT alert
-*
-* @ins:	address of the offending instruction
-* @bt:  address of the branch target
-*/
-static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, std::string *ins_str) {
-#if 1
+static void PIN_FAST_ANALYSIS_CALL 
+ reg_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, REG reg, UINT32 regIdx, ADDRINT immValue, UINT32 lengthBits, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		INT32 length = (INT32)lengthBits;
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
-		pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
 		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
 		UINT8 alertType = 1;
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
@@ -137,8 +132,9 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
 						// Log the tainted instruction using a buffered logger
-						logAlert(tdata, "%d; 0x%08x [%d] %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), operandsTainted,
-							                                            (exportsMap).lower_bound(addr)->second.c_str());
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s %s %d %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg).c_str(), immValue, operandsTainted,
+							(exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -148,12 +144,361 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 			TTINFO(logTaintedSystemCode) = 1;
 		}
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x [%d] %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), operandsTainted);
+		logAlert(tdata, "%d; 0x%08x [%d] %s %s %d %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg).c_str(), immValue, operandsTainted);
 	}
 END:
-#else
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
 }
-#endif
+
+static void PIN_FAST_ANALYSIS_CALL
+mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDRINT memAddress, UINT32 readSize, ADDRINT immValue, UINT32 lengthBits, ADDRINT spAddress) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		INT32 length = (INT32)lengthBits;
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 2;
+		//Extracting memory content
+		ADDRINT memContent;
+		memset(&memContent, 0, sizeof(ADDRINT));
+		PIN_SafeCopy(&memContent, (ADDRINT*)memAddress, (readSize < sizeof(ADDRINT) ? readSize : sizeof(ADDRINT)));
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %d %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, immValue, operandsTainted,
+							(exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %d %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, immValue, operandsTainted);
+	}
+END:
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
+}
+
+static void PIN_FAST_ANALYSIS_CALL
+reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, REG reg_op0, UINT32 regIdx_op0, REG reg_op1, UINT32 regIdx_op1, ADDRINT spAddress) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 3;
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg_op0).c_str(), REG_StringShort(reg_op1).c_str(), 
+							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg_op0).c_str(), REG_StringShort(reg_op1).c_str(), operandsTainted);
+}
+END:
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
+}
+
+static void PIN_FAST_ANALYSIS_CALL
+reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG reg0, UINT32 regIdx_op0, ADDRINT memAddress, UINT32 readSize, ADDRINT spAddress) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 4;
+		// Extracting memory content
+		ADDRINT memContent; 
+		memset(&memContent, 0, sizeof(ADDRINT));
+		PIN_SafeCopy(&memContent, (ADDRINT*)memAddress, (readSize < sizeof(ADDRINT) ? readSize : sizeof(ADDRINT)));
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s %s 0x%08x %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), memAddress, operandsTainted,
+							(exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s %s 0x%08x %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), memAddress, operandsTainted);
+	}
+END:
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
+}
+
+static void PIN_FAST_ANALYSIS_CALL
+mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDRINT memAddress, UINT32 readSize, REG reg1, UINT32 regIdx_op1, ADDRINT spAddress) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 5;
+		//Extracting memory content
+		ADDRINT memContent; 
+		memset(&memContent, 0, sizeof(ADDRINT));
+		PIN_SafeCopy(&memContent, (ADDRINT*)memAddress, (readSize < sizeof(ADDRINT) ? readSize : sizeof(ADDRINT)));
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, REG_StringShort(reg1).c_str(), 
+							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, REG_StringShort(reg1).c_str(), operandsTainted);
+	}
+END:
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
+}
+
+static void PIN_FAST_ANALYSIS_CALL
+reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG reg0, UINT32 regIdx_op0, ADDRINT spAddress) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 6;
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), OP_NA,
+							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), OP_NA, operandsTainted);
+	}
+END:
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
+}
+
+static void PIN_FAST_ANALYSIS_CALL
+mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, ADDRINT memAddress, UINT32 readSize, ADDRINT spAddress) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 7;
+		//Extracting memory content
+		ADDRINT memContent;
+		memset(&memContent, 0, sizeof(ADDRINT));
+		PIN_SafeCopy(&memContent, (ADDRINT*)memAddress, (readSize < sizeof(ADDRINT) ? readSize : sizeof(ADDRINT)));
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, OP_NA, operandsTainted,
+							(exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, OP_NA, operandsTainted);
+	}
+END:
+	// Clear thread context from the taint
+	TTINFO(tainted) = 0;
+	TTINFO(firstOperandTainted) = 0;
+	TTINFO(secondOperandTainted) = 0;
+}
+
+static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, std::string *ins_str) {
+	// If the thread context is tainted
+	if (TTINFO(tainted)) {
+		// Access to global objects
+		State::globalState* gs = State::getGlobalState();
+		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		UINT8 alertType = 8;
+		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
+		if (strcmp("mov", ins.c_str())) {
+			TTINFO(offendingInstruction) = addr;
+		}
+		else {
+			TTINFO(offendingInstruction) = 0;
+		}
+		// See which operands are tainted and which are not
+		int operandsTainted = checkWhichOperandsAreTainted(thread_ctx);
+		// If system code, log the tainted instruction one time
+		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
+		if (currentNode != NULL) {
+			if (TTINFO(logTaintedSystemCode)) {
+				TTINFO(logTaintedSystemCode) = 0;
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						// Log the tainted instruction using a buffered logger
+						alertType = 0;
+						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), OP_NA, OP_NA, operandsTainted,
+							(exportsMap).lower_bound(addr)->second.c_str());
+					}
+				}
+			}
+			goto END;
+		}
+		else {
+			TTINFO(logTaintedSystemCode) = 1;
+		}
+		// Log the tainted instruction using a buffered logger
+		logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), OP_NA, OP_NA, operandsTainted);
+	}
+END:
 	// Clear thread context from the taint
 	TTINFO(tainted) = 0;
 	TTINFO(firstOperandTainted) = 0;
@@ -492,7 +837,189 @@ void instrumentForTaintCheck(INS ins) {
 	}
 
 end:
-	// Check taint before the instruction is executed
+	/*Different cases of immediate instructions:
+		- reg_8 imm
+		- reg_16 imm
+		- reg_32 imm
+		- mem_8 imm  
+		- mem_16 imm 
+		- mem_32 imm 
+	*/
+	if (operands > 1 && INS_OperandIsImmediate(ins, OP_1)) {
+		ADDRINT immValue = INS_OperandImmediate(ins, OP_1);
+		// Get length information
+		xed_decoded_inst_t* xedd = INS_XedDec(ins);
+		INT32 length_bits = xed_decoded_inst_operand_length_bits(xedd, OP_1);
+
+		// If the first operand is a reg, extract the operand and alert
+		if (INS_OperandIsReg(ins, OP_0)) {
+			reg_op0 = INS_OperandReg(ins, OP_0);
+			INS_InsertCall(ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)reg_imm_alert,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_INST_PTR, // Instruction pointer
+				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_PTR, reg_op0, // Content of register operand 0
+				IARG_UINT32, REG32_INDX(reg_op0), // Index of reg (need a switch case in analysis func to understand which reg it is)
+				IARG_ADDRINT, immValue, // Instruction immediate value
+				IARG_UINT32, length_bits, // Length of written bits (remember to cast it to INT32)
+				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+				IARG_END);
+		}
+		else {
+			if (INS_IsMemoryWrite(ins)) {
+				INS_InsertCall(ins,
+					IPOINT_BEFORE,
+					(AFUNPTR)mem_imm_alert,
+					IARG_FAST_ANALYSIS_CALL,
+					IARG_REG_VALUE, thread_ctx_ptr,
+					IARG_INST_PTR, // Instruction pointer
+					IARG_PTR, ins_str, // Disassembly string of the instruction
+					IARG_MEMORYWRITE_EA, // Memory address
+					IARG_MEMORYWRITE_SIZE,
+					IARG_ADDRINT, immValue, // Instruction immediate value
+					IARG_UINT32, length_bits, // Length of written bits (remember to cast it to INT32)
+					IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+					IARG_END);
+			}
+			else if (INS_IsMemoryRead(ins)) {
+				INS_InsertCall(ins,
+					IPOINT_BEFORE,
+					(AFUNPTR)mem_imm_alert,
+					IARG_FAST_ANALYSIS_CALL,
+					IARG_REG_VALUE, thread_ctx_ptr,
+					IARG_INST_PTR, // Instruction pointer
+					IARG_PTR, ins_str, //disassembly string of the instruction
+					IARG_MEMORYREAD_EA, // Memory address
+					IARG_MEMORYREAD_SIZE,
+					IARG_ADDRINT, immValue, // Instruction immediate value
+					IARG_UINT32, length_bits, // Length of written bits (remember to cast it to INT32)
+					IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+					IARG_END);
+			}
+		}
+	}
+	// Both operands are registers (reg_reg)
+	else if (operands > 1 && INS_MemoryOperandCount(ins) == 0) {
+		reg_op0 = INS_OperandReg(ins, 0);
+		reg_op1 = INS_OperandReg(ins, 1);
+		INS_InsertCall(ins,
+			IPOINT_BEFORE,
+			(AFUNPTR)reg_reg_alert,
+			IARG_FAST_ANALYSIS_CALL,
+			IARG_REG_VALUE, thread_ctx_ptr,
+			IARG_INST_PTR, // Instruction pointer
+			IARG_PTR, ins_str, // Disassembly string of the instruction
+			IARG_PTR, reg_op0, // First register object
+			IARG_UINT32, REG32_INDX(reg_op0), // Index of first register (need a switch case in analysis func to understand which reg it is)
+			IARG_PTR, reg_op1, // Second register object
+			IARG_UINT32, REG32_INDX(reg_op1), // Index of second register (need a switch case in analysis func to understand which reg it is)
+			IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+			IARG_END);
+	}
+	// Operand on the right is memory (reg_mem)
+	else if (operands > 1 && INS_OperandIsMemory(ins, OP_1)) {
+		reg_op0 = INS_OperandReg(ins, OP_0);
+
+		if (INS_IsMemoryRead(ins)) {
+			INS_InsertCall(ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)reg_mem_alert,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_INST_PTR, // Instruction pointer
+				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_PTR, reg_op0, // Content of first register
+				IARG_UINT32, REG8_INDX(reg_op0), // Index of first register (need a switch case in analysis func to understand which reg it is)
+				IARG_MEMORYREAD_EA, // Address of the memory operand
+				IARG_MEMORYREAD_SIZE,
+				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+				IARG_END);
+		}
+	}
+	// Operand on the left is memory (mem_reg)
+	else if(operands > 1 && INS_OperandIsMemory(ins, OP_0) && INS_OperandIsReg(ins, OP_1)) {
+		reg_op1 = INS_OperandReg(ins, OP_1);
+
+		if (INS_IsMemoryRead(ins)) {
+			INS_InsertCall(ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)mem_reg_alert,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_INST_PTR, // Instruction pointer
+				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_MEMORYREAD_EA, // Address of memory operand
+				IARG_MEMORYREAD_SIZE,
+				IARG_PTR, reg_op1, // Register object
+				IARG_UINT32, REG32_INDX(reg_op1), // Index of register (need a switch case in analysis func to understand which reg it is)
+				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+				IARG_END);
+		}
+		else if (INS_IsMemoryWrite(ins)) {
+			INS_InsertCall(ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)mem_reg_alert,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_INST_PTR, // Instruction pointer
+				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_MEMORYWRITE_EA, // Address of memory operand
+				IARG_MEMORYWRITE_SIZE,
+				IARG_PTR, reg_op1, // Register object
+				IARG_UINT32, REG32_INDX(reg_op1), // Index of register (need a switch case in analysis func to understand which reg it is)
+				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+				IARG_END);
+		}
+	}
+	// Instruction with single register (e.g. push)
+	else if (INS_OperandIsReg(ins, OP_0)) {
+		reg_op0 = INS_OperandReg(ins, OP_0);
+		INS_InsertCall(ins,
+			IPOINT_BEFORE,
+			(AFUNPTR)reg_alert,
+			IARG_FAST_ANALYSIS_CALL,
+			IARG_REG_VALUE, thread_ctx_ptr,
+			IARG_INST_PTR, // Instruction pointer
+			IARG_PTR, ins_str, // Disassembly string of the instruction
+			IARG_PTR, reg_op0, // Register object
+			IARG_UINT32, REG32_INDX(reg_op0), // Index of register (need a switch case in analysis func to understand which reg it is)
+			IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+			IARG_END);
+	}
+	// Instruction with single memory address (e.g. push)
+	else if (INS_OperandIsMemory(ins, OP_0)) {
+		if (INS_IsMemoryWrite(ins)) {
+			INS_InsertCall(ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)mem_alert,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_INST_PTR, // Instruction pointer
+				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_MEMORYWRITE_EA, // Memory address
+				IARG_MEMORYWRITE_SIZE,
+				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+				IARG_END);
+		}
+		else if (INS_IsMemoryRead(ins)) {
+			INS_InsertCall(ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)mem_alert,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_INST_PTR, // Instruction pointer
+				IARG_PTR, ins_str, //disassembly string of the instruction
+				IARG_MEMORYREAD_EA, // Memory address
+				IARG_MEMORYREAD_SIZE,
+				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
+				IARG_END);
+		}
+	}
+
+default_case:
 	INS_InsertCall(ins,
 		IPOINT_BEFORE,
 		(AFUNPTR)alert,
@@ -500,8 +1027,8 @@ end:
 		IARG_REG_VALUE,
 		thread_ctx_ptr,
 		IARG_INST_PTR,
-		IARG_PTR,
-		ins_str,
+		IARG_PTR, ins_str,
 		IARG_END);
 	return;
 }
+
