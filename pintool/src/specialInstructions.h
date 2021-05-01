@@ -7,6 +7,7 @@
 #include "pin.H"
 #include "state.h"
 #include "winheaders.h"
+#include "disassembler.h"
 #include "libdft/libdft_config.h"
 #include "libdft/bridge.h"
 #include "libdft/libdft_api.h"
@@ -39,7 +40,7 @@ public:
 	/* ===================================================================== */
 	/* Function to check for specific special instruction and insert handlers*/
 	/* ===================================================================== */
-	static void checkSpecialInstruction(INS ins, string* ins_str);
+	static void checkSpecialInstruction(INS ins);
 
 	/* ===================================================================== */
 	/* Function to handle and log the cpuid instruction                      */

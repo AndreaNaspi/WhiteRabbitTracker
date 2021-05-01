@@ -67,7 +67,7 @@ void SpecialInstructionsHandler::regInit(REGSET* regsIn, REGSET* regsOut) {
 /* ===================================================================== */
 /* Function to check for specific special instruction and insert handlers*/
 /* ===================================================================== */
-void SpecialInstructionsHandler::checkSpecialInstruction(INS ins, string* ins_str) {
+void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	static int insCount = 0;
 	ExceptionHandler *eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler* specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
@@ -84,12 +84,11 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins, string* ins_st
 		}
 	}
 	// Get disassembled instruction
-	std::string diassembled_ins = *ins_str;
+	ADDRINT curEip = INS_Address(ins);
+	std::string diassembled_ins = disassembleInstruction(curEip, INS_Size(ins));
 	// Initialize registries for possible IARG_PARTIAL_CONTEXT
 	REGSET regsIn, regsOut;
 	// Get instruction address
-	ADDRINT curEip = INS_Address(ins);
-	xed_iclass_enum_t insIndx = (xed_iclass_enum_t)INS_Opcode(ins);
 	// If "cpuid" instruction (log call with relevant registers and alter values to avoid VM/sandbox detection)
 	if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "cpuid") || diassembled_ins.find("cpuid") != std::string::npos) {
 		// Insert a pre-call before cpuid to get the EAX register
@@ -107,7 +106,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins, string* ins_st
 			IARG_END);
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
-	else if (INS_IsRDTSC(ins) || (diassembled_ins.find("rdtsc") != std::string::npos && insIndx == XED_ICLASS_RDTSC)) {
+	else if (INS_IsRDTSC(ins) || (diassembled_ins.find("rdtsc") != std::string::npos && ((xed_iclass_enum_t)INS_Opcode(ins)) == XED_ICLASS_RDTSC)) {
 		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValues,
@@ -119,9 +118,9 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins, string* ins_st
 	// if "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "int 0x2d") || diassembled_ins.find("int 0x2d") != std::string::npos) {
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::Int2dCalled,
-				        IARG_CONTEXT,
-						IARG_ADDRINT, curEip,
-					    IARG_END);
+			IARG_CONTEXT,
+			IARG_ADDRINT, curEip,
+			IARG_END);
 	}
 	// if "in eax, dx" instruction (log and alter values to avoid VMWare detection
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || diassembled_ins.find("in eax, dx") != std::string::npos) {

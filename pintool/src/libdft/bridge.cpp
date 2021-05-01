@@ -708,7 +708,7 @@ void instrumentForTaintCheck(INS ins) {
 
 	// Sanity check for unexpected instructions
 	if ((xed_iclass_enum_t)INS_Opcode(ins) <= XED_ICLASS_INVALID || (xed_iclass_enum_t)INS_Opcode(ins) >= XED_ICLASS_LAST) {
-		std::cerr << "Unexpected instruction during taint check: " << INS_Disassemble(ins).c_str();
+		std::cerr << "Unexpected instruction during taint check!" << std::endl;
 		return;
 	}
 

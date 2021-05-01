@@ -76,8 +76,7 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 		// Traverse all the instructions in the BBL 
 		for (ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
 			// Check for special instructions (cpuid, rdtsc, int and in) to avoid VM/sandbox detection and taint memory
-			std::string *ins_str = new std::string(INS_Disassemble(ins));
-			specialInstructionsHandlerInfo->checkSpecialInstruction(ins, ins_str);
+			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
 			if (_knobApiTracing) {
 				// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
 				if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
