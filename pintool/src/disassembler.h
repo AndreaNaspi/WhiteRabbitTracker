@@ -8,6 +8,11 @@
 #include <Zydis/Zydis.h>
 
 /* ===================================================================== */
+/* Function to disassemble an instruction at a specific EIP              */
+/* ===================================================================== */
+std::string disassembleInstruction(ADDRINT address, ADDRINT instructionSize);
+
+/* ===================================================================== */
 /* Function to initialize the disassembler                               */
 /* ===================================================================== */
 int initializeDisassembler();

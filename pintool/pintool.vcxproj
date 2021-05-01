@@ -256,7 +256,7 @@
       <AdditionalOptions>/EHs- /EHa- %(AdditionalOptions)</AdditionalOptions>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(PinFolder)\source\include\pin;$(PinFolder)\source\include\pin\gen;$(PinFolder)\source\tools\InstLib;$(PinFolder)\extras\xed-ia32\include\xed;$(PinFolder)\extras\components\include;$(PinFolder)\extras\stlport\include;$(PinFolder)\extras;$(PinFolder)\extras\libstdc++\include;$(PinFolder)\extras\crt\include;$(PinFolder)\extras\crt;$(PinFolder)\extras\crt\include\arch-x86;$(PinFolder)\extras\crt\include\kernel\uapi;$(PinFolder)\extras\crt\include\kernel\uapi\asm-x86;$(ZydisTargetFolder)\msvc;$(ZydisTargetFolder)\dependencies\zycore\include;$(ZydisTargetFolder)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(PinFolder)\source\include\pin;$(PinFolder)\source\include\pin\gen;$(PinFolder)\source\tools\InstLib;$(PinFolder)\extras\xed-ia32\include\xed;$(PinFolder)\extras\components\include;$(PinFolder)\extras\stlport\include;$(PinFolder)\extras;$(PinFolder)\extras\libstdc++\include;$(PinFolder)\extras\crt\include;$(PinFolder)\extras\crt;$(PinFolder)\extras\crt\include\arch-x86;$(PinFolder)\extras\crt\include\kernel\uapi;$(PinFolder)\extras\crt\include\kernel\uapi\asm-x86;$(ZydisFolder)\msvc;$(ZydisFolder)\dependencies\zycore\include;$(ZydisFolder)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>TARGET_IA32;HOST_IA32;TARGET_WINDOWS;WIN32;_WINDOWS_H_PATH_=$(WinHPath);__PIN__=1;PIN_CRT=1;__i386__</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <ExceptionHandling>
@@ -277,9 +277,9 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/export:main /ignore:4210 /ignore:4049 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>$(PinFolder)\ia32\runtime\pincrt\crtbeginS.obj;pin.lib;xed.lib;pinvm.lib;stlport-static.lib;m-static.lib;c-static.lib;os-apis.lib;ntdll-32.lib;kernel32.lib;Zycore.lib;Zydis.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(PinFolder)\ia32\lib;$(PinFolder)\ia32\lib-ext;$(PinFolder)\ia32\runtime\pincrt\;$(PinFolder)\extras\xed-ia32\lib;$(ZydisTargetFolder)\msvc\bin\DebugX86\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <AdditionalDependencies>$(PinFolder)\ia32\runtime\pincrt\crtbeginS.obj;pin.lib;xed.lib;pinvm.lib;stlport-static.lib;m-static.lib;c-static.lib;os-apis.lib;Zycore.lib;Zydis.lib;ntdll-32.lib;kernel32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(PinFolder)\ia32\lib;$(PinFolder)\ia32\lib-ext;$(PinFolder)\ia32\runtime\pincrt\;$(PinFolder)\extras\xed-ia32\lib;$(ZydisFolder)\msvc\bin\DebugX86\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>NotSet</SubSystem>
@@ -295,7 +295,7 @@
       </AddModuleNamesToAssembly>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY "$(ZydisTargetFolder)"\msvc\bin\DebugX86\Zydis.dll "$(PinFolder)" /D /K /Y</Command>
+      <Command>XCOPY "$(ZydisFolder)"\msvc\bin\DebugX86\Zydis.dll "$(PinFolder)" /D /K /Y</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Copy Xydis DLL to Target Directory</Message>

@@ -31,7 +31,7 @@ public:
 	void init(std::string fileName) {
 		// Check if file name is empty or null
 		if (fileName.empty()) {
-			fileName = "output.txt";
+			fileName = "output.log";
 		} 
 		// Save the file name in a global variable
 		m_logFileName = fileName;

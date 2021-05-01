@@ -6,6 +6,7 @@
 #include "bridge.h" 
 #include "../itree.h"
 #include "../state.h"
+#include "../disassembler.h"
 
 #define TTINFO(field) thread_ctx->ttinfo.field
 
@@ -65,6 +66,7 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 /*
 Check which operands are tainted using the thread-context variables TTINFO(firstOperandTainted) and TTINFO(secondOperandTainted)
 return values:
+    0 = no tainted operands (e.g. cpuid)
 	1 = only first operand tainted
 	2 = only second operand tainted
 	3 = both operands tainted
@@ -76,8 +78,11 @@ int checkWhichOperandsAreTainted(thread_ctx_t *thread_ctx) {
 	else if (TTINFO(firstOperandTainted) && !TTINFO(secondOperandTainted)) {
 		return 1;
 	}
-	else {
+	else if(!TTINFO(firstOperandTainted) && TTINFO(secondOperandTainted)){
 		return 2;
+	}
+	else {
+		return 0;
 	}
 }
 
@@ -89,30 +94,35 @@ possible instruction which affected this branch execution.
 @isBranchTaken: bool which tells if the instruction effectively jumps or not
 @targetAddress: target address of the jump
 */
-static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT ipAddress, BOOL isBranchTaken, ADDRINT targetAddress, std::string *ins_str, ADDRINT spAddress) {
+static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size, BOOL isBranchTaken, ADDRINT targetAddress, ADDRINT spAddress) {
+	// Disassemble instruction
+	std::string instruction = disassembleInstruction(addr, size);
 	// Access to global objects
 	State::globalState* gs = State::getGlobalState();
 	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-	std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+	std::string ins = (instruction).substr(0, (instruction).find(" "));
 	UINT8 alertType = 10;
 	// Check if we have an offending instruction and if program code
-	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, ipAddress) == NULL) {
+	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, addr) == NULL) {
 		// Log the tainted instruction using a buffered logger
-		logAlert(tdata, "%d; 0x%08x 0x%08x %s\n", alertType, ipAddress, targetAddress, ins.c_str());
+		logAlert(tdata, "%d; 0x%08x 0x%08x %s\n", alertType, addr, targetAddress, ins.c_str());
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 		// Reset the offending instruction
 		TTINFO(offendingInstruction) = 0;
 	}
 }
 
 static void PIN_FAST_ANALYSIS_CALL 
- reg_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, REG reg, UINT32 regIdx, ADDRINT immValue, UINT32 lengthBits, ADDRINT spAddress) {
+ reg_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg, UINT32 regIdx, ADDRINT immValue, UINT32 lengthBits, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
 		INT32 length = (INT32)lengthBits;
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 1;
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -135,6 +145,7 @@ static void PIN_FAST_ANALYSIS_CALL
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %d %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg).c_str(), immValue, operandsTainted,
 							(exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -145,6 +156,7 @@ static void PIN_FAST_ANALYSIS_CALL
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s %s %d %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg).c_str(), immValue, operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -154,14 +166,16 @@ END:
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDRINT memAddress, UINT32 readSize, ADDRINT immValue, UINT32 lengthBits, ADDRINT spAddress) {
+mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memAddress, UINT32 readSize, ADDRINT immValue, UINT32 lengthBits, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
 		INT32 length = (INT32)lengthBits;
+		// Disassemble instrution
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 2;
 		//Extracting memory content
 		ADDRINT memContent;
@@ -188,6 +202,7 @@ mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDR
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %d %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, immValue, operandsTainted,
 							(exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -198,6 +213,7 @@ mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDR
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %d %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, immValue, operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -207,13 +223,15 @@ END:
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, REG reg_op0, UINT32 regIdx_op0, REG reg_op1, UINT32 regIdx_op1, ADDRINT spAddress) {
+reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg_op0, UINT32 regIdx_op0, REG reg_op1, UINT32 regIdx_op1, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 3;
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -236,6 +254,7 @@ reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, REG 
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg_op0).c_str(), REG_StringShort(reg_op1).c_str(), 
 							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -246,6 +265,7 @@ reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, REG 
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg_op0).c_str(), REG_StringShort(reg_op1).c_str(), operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 }
 END:
 	// Clear thread context from the taint
@@ -255,13 +275,15 @@ END:
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG reg0, UINT32 regIdx_op0, ADDRINT memAddress, UINT32 readSize, ADDRINT spAddress) {
+reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UINT32 regIdx_op0, ADDRINT memAddress, UINT32 readSize, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 4;
 		// Extracting memory content
 		ADDRINT memContent; 
@@ -288,6 +310,7 @@ reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG 
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s 0x%08x %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), memAddress, operandsTainted,
 							(exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -298,6 +321,7 @@ reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG 
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s %s 0x%08x %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), memAddress, operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -307,13 +331,15 @@ END:
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDRINT memAddress, UINT32 readSize, REG reg1, UINT32 regIdx_op1, ADDRINT spAddress) {
+mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memAddress, UINT32 readSize, REG reg1, UINT32 regIdx_op1, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 5;
 		//Extracting memory content
 		ADDRINT memContent; 
@@ -340,6 +366,7 @@ mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDR
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, REG_StringShort(reg1).c_str(), 
 							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -350,6 +377,7 @@ mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string *ins_str, ADDR
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, REG_StringShort(reg1).c_str(), operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -359,13 +387,15 @@ END:
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG reg0, UINT32 regIdx_op0, ADDRINT spAddress) {
+reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UINT32 regIdx_op0, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 6;
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -388,6 +418,7 @@ reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG reg0
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), OP_NA,
 							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -398,6 +429,7 @@ reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, REG reg0
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), OP_NA, operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -407,13 +439,15 @@ END:
 }
 
 static void PIN_FAST_ANALYSIS_CALL
-mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, ADDRINT memAddress, UINT32 readSize, ADDRINT spAddress) {
+mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memAddress, UINT32 readSize, ADDRINT spAddress) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 7;
 		//Extracting memory content
 		ADDRINT memContent;
@@ -440,6 +474,7 @@ mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, ADDRINT 
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, OP_NA, operandsTainted,
 							(exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -450,6 +485,7 @@ mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, std::string* ins_str, ADDRINT 
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, OP_NA, operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -458,13 +494,16 @@ END:
 	TTINFO(secondOperandTainted) = 0;
 }
 
-static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr, std::string *ins_str) {
+static void PIN_FAST_ANALYSIS_CALL 
+alert(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size) {
 	// If the thread context is tainted
 	if (TTINFO(tainted)) {
+		// Disassemble instruction
+		std::string instruction = disassembleInstruction(addr, size);
 		// Access to global objects
 		State::globalState* gs = State::getGlobalState();
 		pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
-		std::string ins = (*ins_str).substr(0, (*ins_str).find(" "));
+		std::string ins = (instruction).substr(0, (instruction).find(" "));
 		UINT8 alertType = 8;
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -487,6 +526,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), OP_NA, OP_NA, operandsTainted,
 							(exportsMap).lower_bound(addr)->second.c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
 					}
 				}
 			}
@@ -497,6 +537,7 @@ static void PIN_FAST_ANALYSIS_CALL alert(thread_ctx_t *thread_ctx, ADDRINT addr,
 		}
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), OP_NA, OP_NA, operandsTainted);
+		logInstruction(tdata, "%d; 0x%08x [%d] %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str());
 	}
 END:
 	// Clear thread context from the taint
@@ -663,11 +704,10 @@ static void PIN_FAST_ANALYSIS_CALL assert_mem_generic(thread_ctx_t *thread_ctx, 
 void instrumentForTaintCheck(INS ins) {
 	// Initialize instruction operands and instruction opcode
 	REG reg_op0, reg_op1;
-	xed_iclass_enum_t ins_indx = (xed_iclass_enum_t)INS_Opcode(ins);
-	std::string *ins_str = new std::string(INS_Disassemble(ins));
+	ADDRINT size = INS_Size(ins);
 
 	// Sanity check for unexpected instructions
-	if (ins_indx <= XED_ICLASS_INVALID || ins_indx >= XED_ICLASS_LAST) {
+	if ((xed_iclass_enum_t)INS_Opcode(ins) <= XED_ICLASS_INVALID || (xed_iclass_enum_t)INS_Opcode(ins) >= XED_ICLASS_LAST) {
 		std::cerr << "Unexpected instruction during taint check: " << INS_Disassemble(ins).c_str();
 		return;
 	}
@@ -681,9 +721,9 @@ void instrumentForTaintCheck(INS ins) {
 			IARG_FAST_ANALYSIS_CALL,
 			IARG_REG_VALUE, thread_ctx_ptr,
 			IARG_INST_PTR, // ip of the instruction
+			IARG_ADDRINT, size, // instruction size
 			IARG_BRANCH_TAKEN,
 			IARG_BRANCH_TARGET_ADDR, // target of conditional jump
-			IARG_PTR, ins_str, // disassembly string of the instruction
 			IARG_REG_VALUE, REG_STACK_PTR, // SP before ins is executed
 			IARG_END);
 	}
@@ -860,7 +900,7 @@ end:
 				IARG_FAST_ANALYSIS_CALL,
 				IARG_REG_VALUE, thread_ctx_ptr,
 				IARG_INST_PTR, // Instruction pointer
-				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_ADDRINT, size, // Instruction size
 				IARG_PTR, reg_op0, // Content of register operand 0
 				IARG_UINT32, REG32_INDX(reg_op0), // Index of reg (need a switch case in analysis func to understand which reg it is)
 				IARG_ADDRINT, immValue, // Instruction immediate value
@@ -876,7 +916,7 @@ end:
 					IARG_FAST_ANALYSIS_CALL,
 					IARG_REG_VALUE, thread_ctx_ptr,
 					IARG_INST_PTR, // Instruction pointer
-					IARG_PTR, ins_str, // Disassembly string of the instruction
+					IARG_ADDRINT, size, // Instruction size
 					IARG_MEMORYWRITE_EA, // Memory address
 					IARG_MEMORYWRITE_SIZE,
 					IARG_ADDRINT, immValue, // Instruction immediate value
@@ -891,7 +931,7 @@ end:
 					IARG_FAST_ANALYSIS_CALL,
 					IARG_REG_VALUE, thread_ctx_ptr,
 					IARG_INST_PTR, // Instruction pointer
-					IARG_PTR, ins_str, //disassembly string of the instruction
+					IARG_ADDRINT, size, // Instruction size
 					IARG_MEMORYREAD_EA, // Memory address
 					IARG_MEMORYREAD_SIZE,
 					IARG_ADDRINT, immValue, // Instruction immediate value
@@ -911,7 +951,7 @@ end:
 			IARG_FAST_ANALYSIS_CALL,
 			IARG_REG_VALUE, thread_ctx_ptr,
 			IARG_INST_PTR, // Instruction pointer
-			IARG_PTR, ins_str, // Disassembly string of the instruction
+			IARG_ADDRINT, size, // Instruction size
 			IARG_PTR, reg_op0, // First register object
 			IARG_UINT32, REG32_INDX(reg_op0), // Index of first register (need a switch case in analysis func to understand which reg it is)
 			IARG_PTR, reg_op1, // Second register object
@@ -930,7 +970,7 @@ end:
 				IARG_FAST_ANALYSIS_CALL,
 				IARG_REG_VALUE, thread_ctx_ptr,
 				IARG_INST_PTR, // Instruction pointer
-				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_ADDRINT, size, // Instruction size
 				IARG_PTR, reg_op0, // Content of first register
 				IARG_UINT32, REG8_INDX(reg_op0), // Index of first register (need a switch case in analysis func to understand which reg it is)
 				IARG_MEMORYREAD_EA, // Address of the memory operand
@@ -950,7 +990,7 @@ end:
 				IARG_FAST_ANALYSIS_CALL,
 				IARG_REG_VALUE, thread_ctx_ptr,
 				IARG_INST_PTR, // Instruction pointer
-				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_ADDRINT, size, // Instruction size
 				IARG_MEMORYREAD_EA, // Address of memory operand
 				IARG_MEMORYREAD_SIZE,
 				IARG_PTR, reg_op1, // Register object
@@ -965,7 +1005,7 @@ end:
 				IARG_FAST_ANALYSIS_CALL,
 				IARG_REG_VALUE, thread_ctx_ptr,
 				IARG_INST_PTR, // Instruction pointer
-				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_ADDRINT, size, // Instruction size
 				IARG_MEMORYWRITE_EA, // Address of memory operand
 				IARG_MEMORYWRITE_SIZE,
 				IARG_PTR, reg_op1, // Register object
@@ -983,7 +1023,7 @@ end:
 			IARG_FAST_ANALYSIS_CALL,
 			IARG_REG_VALUE, thread_ctx_ptr,
 			IARG_INST_PTR, // Instruction pointer
-			IARG_PTR, ins_str, // Disassembly string of the instruction
+			IARG_ADDRINT, size, // Instruction size
 			IARG_PTR, reg_op0, // Register object
 			IARG_UINT32, REG32_INDX(reg_op0), // Index of register (need a switch case in analysis func to understand which reg it is)
 			IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
@@ -998,7 +1038,7 @@ end:
 				IARG_FAST_ANALYSIS_CALL,
 				IARG_REG_VALUE, thread_ctx_ptr,
 				IARG_INST_PTR, // Instruction pointer
-				IARG_PTR, ins_str, // Disassembly string of the instruction
+				IARG_ADDRINT, size, // Instruction size
 				IARG_MEMORYWRITE_EA, // Memory address
 				IARG_MEMORYWRITE_SIZE,
 				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
@@ -1011,7 +1051,7 @@ end:
 				IARG_FAST_ANALYSIS_CALL,
 				IARG_REG_VALUE, thread_ctx_ptr,
 				IARG_INST_PTR, // Instruction pointer
-				IARG_PTR, ins_str, //disassembly string of the instruction
+				IARG_ADDRINT, size, // Instruction size
 				IARG_MEMORYREAD_EA, // Memory address
 				IARG_MEMORYREAD_SIZE,
 				IARG_REG_VALUE, REG_STACK_PTR, // Stack pointer before the instruction is executed
@@ -1027,7 +1067,7 @@ default_case:
 		IARG_REG_VALUE,
 		thread_ctx_ptr,
 		IARG_INST_PTR,
-		IARG_PTR, ins_str,
+		IARG_ADDRINT, size,
 		IARG_END);
 	return;
 }

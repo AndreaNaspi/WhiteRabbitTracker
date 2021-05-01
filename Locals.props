@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
     <PinFolder>C:\Pin315</PinFolder>
-	<ZydisTargetFolder>$(SolutionDir)deps\zydis</ZydisTargetFolder>
+	<ZydisFolder>$(SolutionDir)deps\zydis</ZydisFolder>
     <WinHPath>C:/Program Files (x86)/Windows Kits/8.1/Include/um</WinHPath>
   </PropertyGroup>
   <PropertyGroup>
