@@ -87,6 +87,22 @@ int checkWhichOperandsAreTainted(thread_ctx_t *thread_ctx) {
 	}
 }
 
+// Search the nearest address in the export map of the current DLL to find which system API is tainted
+W::DWORD searchNearestValueExportMap(std::map<W::DWORD, std::string> exportsMap, ADDRINT addr) {
+	W::DWORD currentAddr;
+	for (const auto& p : exportsMap) {
+		if (!currentAddr) {
+			currentAddr = p.first;
+		}
+		else {
+			if (std::abs((long)(p.first - addr)) < std::abs((long)(currentAddr - addr))) {
+				currentAddr = p.first;
+			}
+		}
+	}
+	return currentAddr;
+}
+
 
 static void PIN_FAST_ANALYSIS_CALL
 detected_call(thread_ctx_t* thread_ctx, ADDRINT callTargetAddress, ADDRINT retTargetAddress, ADDRINT currentSPAddress, ADDRINT ipAddress) {
@@ -155,11 +171,12 @@ static void PIN_FAST_ANALYSIS_CALL
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %d %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg).c_str(), immValue, operandsTainted,
-							(exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							(exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -212,11 +229,12 @@ mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %d %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, immValue, operandsTainted,
-							(exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							(exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -264,11 +282,12 @@ reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg_op0,
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg_op0).c_str(), REG_StringShort(reg_op1).c_str(), 
-							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							operandsTainted, (exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -320,11 +339,12 @@ reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UI
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s 0x%08x %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), memAddress, operandsTainted,
-							(exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							(exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -376,11 +396,12 @@ mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, REG_StringShort(reg1).c_str(), 
-							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							operandsTainted, (exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -428,11 +449,12 @@ reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UINT32
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), REG_StringShort(reg0).c_str(), OP_NA,
-							operandsTainted, (exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							operandsTainted, (exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -484,11 +506,12 @@ mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memAddre
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s 0x%08x %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), memAddress, OP_NA, operandsTainted,
-							(exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							(exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
@@ -536,11 +559,12 @@ alert(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size) {
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
 						std::map<W::DWORD, std::string> exportsMap = gs->dllExports[i].exports;
+						W::DWORD nearestAddress = searchNearestValueExportMap(exportsMap, addr);
 						// Log the tainted instruction using a buffered logger
 						alertType = 0;
 						logAlert(tdata, "%d; 0x%08x [%d] %s %s %s %d %s\n", alertType, addr, (int)TTINFO(tainted), ins.c_str(), OP_NA, OP_NA, operandsTainted,
-							(exportsMap).lower_bound(addr)->second.c_str());
-						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap).lower_bound(addr)->second.c_str());
+							(exportsMap)[nearestAddress].c_str());
+						logInstruction(tdata, "%d; 0x%08x [%d] %s %s\n", alertType, addr, (int)TTINFO(tainted), instruction.c_str(), (exportsMap)[nearestAddress].c_str());
 					}
 				}
 			}
