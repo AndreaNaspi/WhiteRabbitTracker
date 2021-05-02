@@ -265,6 +265,11 @@ VOID OnThreadStart(THREADID tid, CONTEXT *ctxt, INT32, VOID *) {
 	TTINFO(secondOperandTainted) = 0;
 	TTINFO(offendingInstruction) = 0;
 	TTINFO(logTaintedSystemCode) = 0;
+	// Initialize shadow stack
+	TTINFO(shadowStackThread) = new callStackThread;
+	TTINFO(shadowStackThread)->callStack = new std::vector<callStackFrame>;
+	TTINFO(shadowStackThread)->callStack->reserve(32);
+	TTINFO(shadowStackThread)->callStackTop = 0;
 	// Undefine thread informations (used later in bridge.cpp for libdft tainting)
 	#undef TTINFO
 	// Initialize buffered logger for the current thread

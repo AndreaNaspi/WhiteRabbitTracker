@@ -38,6 +38,7 @@
 
 #include "pin.H"
 #include "libdft_config.h"
+#include "../callStack.h"
 
 typedef struct {
 	THREADID		tid;
@@ -48,6 +49,7 @@ typedef struct {
 	UINT32          secondOperandTainted; // needed to understand which operands are tainted and which are not
 	ADDRINT         offendingInstruction; // conditional branch analysis
 	int             logTaintedSystemCode; // check if we need to alert instruction in system code
+	callStackThreadP shadowStackThread; // shadow stack
 } taint_thread_info;
 
 

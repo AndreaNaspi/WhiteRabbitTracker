@@ -63,6 +63,7 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 	}
 }
 
+
 /*
 Check which operands are tainted using the thread-context variables TTINFO(firstOperandTainted) and TTINFO(secondOperandTainted)
 return values:
@@ -86,6 +87,18 @@ int checkWhichOperandsAreTainted(thread_ctx_t *thread_ctx) {
 	}
 }
 
+
+static void PIN_FAST_ANALYSIS_CALL
+detected_call(thread_ctx_t* thread_ctx, ADDRINT callTargetAddress, ADDRINT retTargetAddress, ADDRINT currentSPAddress, ADDRINT ipAddress) {
+	callStackPush(thread_ctx->ttinfo.shadowStackThread, callTargetAddress, retTargetAddress, currentSPAddress);
+}
+
+
+static void PIN_FAST_ANALYSIS_CALL
+detected_ret(thread_ctx_t* thread_ctx, ADDRINT retTargetAddress, ADDRINT currentSPAddress, ADDRINT ip) {
+	callStackPop(thread_ctx->ttinfo.shadowStackThread, retTargetAddress, currentSPAddress);
+}
+
 /*
 Analysis function for conditional jump instructions. Here, offendingInstruction can be the
 possible instruction which affected this branch execution.
@@ -94,7 +107,8 @@ possible instruction which affected this branch execution.
 @isBranchTaken: bool which tells if the instruction effectively jumps or not
 @targetAddress: target address of the jump
 */
-static void PIN_FAST_ANALYSIS_CALL condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size, BOOL isBranchTaken, ADDRINT targetAddress, ADDRINT spAddress) {
+static void PIN_FAST_ANALYSIS_CALL 
+condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size, BOOL isBranchTaken, ADDRINT targetAddress, ADDRINT spAddress) {
 	// Disassemble instruction
 	std::string instruction = disassembleInstruction(addr, size);
 	// Access to global objects
@@ -712,6 +726,50 @@ void instrumentForTaintCheck(INS ins) {
 		return;
 	}
 
+	// Instrument call instructions for call stack insertion
+	if (INS_IsCall(ins)) {
+		if (INS_IsDirectCall(ins)) {
+			INS_InsertCall(
+				ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)detected_call,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_ADDRINT, INS_DirectBranchOrCallTargetAddress(ins), // Target address of call
+				IARG_ADDRINT, INS_NextAddress(ins), // Next address of call -> return address of the call
+				IARG_REG_VALUE, REG_STACK_PTR, // SP before ret executed
+				IARG_ADDRINT, INS_Address(ins), // Address of the instruction
+				IARG_END);
+		}
+		else {
+			INS_InsertCall(
+				ins,
+				IPOINT_BEFORE,
+				(AFUNPTR)detected_call,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, thread_ctx_ptr,
+				IARG_BRANCH_TARGET_ADDR,
+				IARG_ADDRINT, INS_NextAddress(ins),
+				IARG_REG_VALUE, REG_STACK_PTR, // SP before ret executed
+				IARG_ADDRINT, INS_Address(ins),
+				IARG_END);
+		}
+	}
+
+	// Instrument ret instructions for shadow call stack deletion
+	if (INS_IsRet(ins)) {
+		INS_InsertCall(
+			ins,
+			IPOINT_BEFORE,
+			(AFUNPTR)detected_ret,
+			IARG_FAST_ANALYSIS_CALL,
+			IARG_REG_VALUE, thread_ctx_ptr,
+			IARG_BRANCH_TARGET_ADDR, // Target address of ret
+			IARG_REG_VALUE, REG_STACK_PTR, // SP before ret execution
+			IARG_ADDRINT, INS_Address(ins), // Address of the instruction
+			IARG_END);
+	}
+
 	// Instrument conditional jump instructions for control flow checks
 	if (INS_Category(ins) == XED_CATEGORY_COND_BR) {
 		INS_InsertCall(
@@ -855,7 +913,7 @@ void instrumentForTaintCheck(INS ins) {
 					IARG_MEMORYOP_EA,
 					memOpIdx,
 					IARG_UINT32,
-					myOpIdx, //Added to understand qhich operand we are talking about when assert is issued 
+					myOpIdx, // Added to understand which operand we are talking about when assert is issued 
 					IARG_END);
 			}
 			else {
@@ -870,7 +928,7 @@ void instrumentForTaintCheck(INS ins) {
 					IARG_UINT32,
 					opSize,
 					IARG_UINT32,
-					myOpIdx, //Added to understand qhich operand we are talking about when assert is issued 
+					myOpIdx, // Added to understand which operand we are talking about when assert is issued 
 					IARG_END);
 			}
 		}

@@ -3,6 +3,7 @@
 #include "libdft_api.h"
 #include "../syshooking.h"
 #include "../bufferLoggingInfo.h"
+#include "../callStack.h"
 #include <iostream>
 using std::cerr;
 

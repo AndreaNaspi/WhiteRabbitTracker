@@ -303,6 +303,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\bufferLoggingInfo.cpp" />
+    <ClCompile Include="src\callStack.cpp" />
     <ClCompile Include="src\disassembler.cpp" />
     <ClCompile Include="src\exceptionHandler.cpp" />
     <ClCompile Include="src\functions.cpp" />
@@ -332,6 +333,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bufferLoggingInfo.h" />
+    <ClInclude Include="src\callStack.h" />
     <ClInclude Include="src\disassembler.h" />
     <ClInclude Include="src\exceptionHandler.h" />
     <ClInclude Include="src\functions.h" />
