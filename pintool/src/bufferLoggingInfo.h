@@ -34,13 +34,19 @@ typedef struct {
 	FILE* logfileInstruction; // File for logging the tainted full instruction
 	char* scztoonInstruction; // Buffer for logging
 	UINT32 dropsInstruction;
+	FILE* logfileTaintedMemory; // File for logging the tainted memory areas
+	char* scztoonTaintedMemory; // Buffer for logging
+	UINT32 dropsTaintedMemory;
 } pintool_tls;
 
 inline BOOL scztoonIsFull(pintool_tls* tdata);
 inline BOOL scztoonInstructionIsFull(pintool_tls* tdata);
+inline BOOL scztoonTaintedMemorynIsFull(pintool_tls* tdata);
 void scztoonToDisk(pintool_tls* tdata);
 void scztoonInstructionToDisk(pintool_tls* tdata);
+void scztoonTaintedMemoryToDisk(pintool_tls* tdata);
 VOID threadInitLogger(THREADID tid, pintool_tls* tdata);
 VOID threadExitLogger(THREADID tid, pintool_tls* tdata);
 VOID logAlert(pintool_tls* tdata, const char* fmt, ...);
 VOID logInstruction(pintool_tls* tdata, const char* fmt, ...);
+VOID logTaintedMemoryArea(pintool_tls* tdata, const char* fmt, ...);

@@ -44,6 +44,12 @@ void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool res
 	// Check if the pointer is 0 or NULL (check address)
 	if (addr == 0 || addr == NULL)
 		return;
+	// Log the tainted memory area
+	std::stringstream taintMemoryArea;
+	ADDRINT endMemoryArea = (ADDRINT)addr + size;
+	thread_ctx_t* thread_ctx = (thread_ctx_t*)PIN_GetContextReg(ctx, thread_ctx_ptr);
+	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+	logTaintedMemoryArea(tdata, "0x%08x 0x%08x [%d]\n", addr, endMemoryArea, tag);
 	// Taint the memory addresses
 	std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
 	for (UINT32 i = 0; i < size; ++i) {
@@ -51,8 +57,6 @@ void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool res
 		if (!reset) t |= tagmap_getb(addr + i);
 		tagmap_setb_with_tag(addr + i, t);
 	}
-	// Alert next instruction in system code
-	thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr);
 }
 
 void clearTaintMemory(ADDRINT addr, UINT32 size) {

@@ -8,6 +8,11 @@ inline BOOL scztoonInstructionIsFull(pintool_tls* tdata) {
 	return tdata->dropsInstruction + SIZE_SCZ >= SIZE_SCZTOON;
 }
 
+inline BOOL scztoonTaintedMemorynIsFull(pintool_tls* tdata) {
+	return tdata->dropsTaintedMemory + SIZE_SCZ >= SIZE_SCZTOON;
+}
+
+
 void scztoonToDisk(pintool_tls* tdata) {
 	PIN_LockClient();
 	if (!tdata->logfile) 
@@ -36,6 +41,20 @@ EXIT:
 	tdata->dropsInstruction = 0;
 }
 
+void scztoonTaintedMemoryToDisk(pintool_tls* tdata) {
+	PIN_LockClient();
+	if (!tdata->logfileTaintedMemory)
+		goto EXIT;
+	// Flush buffered tainted memory logger to log file for the current thread
+	int ret = fwrite(tdata->scztoonTaintedMemory, tdata->dropsTaintedMemory, 1, tdata->logfileTaintedMemory);
+	if (ret != 1) {
+		std::cerr << "Cannot flush scztoon to file!" << std::endl;
+	}
+EXIT:
+	PIN_UnlockClient();
+	tdata->dropsTaintedMemory = 0;
+}
+
 
 VOID threadInitLogger(THREADID tid, pintool_tls* tdata) {
 	OS_MkDir(LOGPATH_TAINT, 755);
@@ -57,12 +76,24 @@ VOID threadInitLogger(THREADID tid, pintool_tls* tdata) {
 	if (!tdata->logfileInstruction) {
 		std::cerr << "Cannot create logfile in " << LOGPATH_TAINT << std::endl;
 	}
+	// Initialize logging tainted memory file for each thread
+	char bufMemory[256];
+#define LOGNAME_MEM "tainted-%u-mem.log"
+	sprintf(bufMemory, LOGPATH_TAINT LOGNAME_MEM, PIN_GetTid());
+#undef LOGNAME
+	tdata->logfileTaintedMemory = fopen(bufMemory, "wb");
+	if (!tdata->logfileTaintedMemory) {
+		std::cerr << "Cannot create logfile in " << LOGPATH_TAINT << std::endl;
+	}
 	// Initialize scztoon for the main log file
 	tdata->scztoon = (char*)malloc(SIZE_SCZTOON);
 	tdata->drops = 0;
 	// Initialize scztoon for the instruction log file
 	tdata->scztoonInstruction = (char*)malloc(SIZE_SCZTOON);
 	tdata->dropsInstruction = 0;
+	// Initialize scztoon for the memory areas log file
+	tdata->scztoonTaintedMemory = (char*)malloc(SIZE_SCZTOON);
+	tdata->dropsTaintedMemory = 0;
 }
 
 VOID threadExitLogger(THREADID tid, pintool_tls* tdata) {
@@ -78,6 +109,12 @@ VOID threadExitLogger(THREADID tid, pintool_tls* tdata) {
 	free(tdata->scztoonInstruction);
 	if (tdata->logfileInstruction)
 		fclose(tdata->logfileInstruction);
+	// Flush buffered memory areas logger to disk
+	if (tdata->dropsTaintedMemory > 0)
+		scztoonTaintedMemoryToDisk(tdata);
+	free(tdata->scztoonTaintedMemory);
+	if (tdata->logfileTaintedMemory)
+		fclose(tdata->logfileTaintedMemory);
 }
 
 VOID logAlert(pintool_tls* tdata, const char* fmt, ...) {
@@ -106,4 +143,18 @@ VOID logInstruction(pintool_tls* tdata, const char* fmt, ...) {
 	va_end(args);
 	if (ret > 0)
 		tdata->dropsInstruction += ret;
+}
+
+VOID logTaintedMemoryArea(pintool_tls* tdata, const char* fmt, ...) {
+	// Check if the buffer is full
+	if (scztoonTaintedMemorynIsFull(tdata)) {
+		scztoonTaintedMemoryToDisk(tdata);
+	}
+	// Write the current memory area to the buffer
+	va_list args;
+	va_start(args, fmt);
+	int ret = vsnprintf(tdata->scztoonTaintedMemory + tdata->dropsTaintedMemory, SIZE_SCZ, fmt, args);
+	va_end(args);
+	if (ret > 0)
+		tdata->dropsTaintedMemory += ret;
 }
