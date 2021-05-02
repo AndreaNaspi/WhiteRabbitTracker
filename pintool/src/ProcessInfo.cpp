@@ -193,7 +193,7 @@ bool ProcessInfo::parseExportTable(const char* dllPath, ADDRINT baseAddress, std
 	W::PIMAGE_NT_HEADERS32 pNTHeader = MakePtr(W::PIMAGE_NT_HEADERS32, dosHeader, dosHeader->e_lfanew);
 
 	if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
-		std::cerr << "64-bit header unsupported yet" << std::endl;
+		std::cerr << "64-bit header unsupported yet (DDL exports parsing)!" << std::endl;
 		return -1;
 	}
 
@@ -209,7 +209,7 @@ bool ProcessInfo::parseExportTable(const char* dllPath, ADDRINT baseAddress, std
 
 	header = peGetEnclosingSectionHeader(exportsStartRVA, pNTHeader);
 	if (!header) {
-		std::cerr << "Could not find exports header in PE!" << std::endl;
+		std::cerr << "Could not find exports header in PE during DLL exports parsing!" << std::endl;
 		return -1;
 	}
 
@@ -218,7 +218,7 @@ bool ProcessInfo::parseExportTable(const char* dllPath, ADDRINT baseAddress, std
 	pwOrdinals = (W::PWORD)peGetPtrFromRVA(pExportDir->AddressOfNameOrdinals, pNTHeader, pImageBase);
 	pszFuncNames = (W::PDWORD)peGetPtrFromRVA(pExportDir->AddressOfNames, pNTHeader, pImageBase);
 	if (!pExportDir || !pdwFunctions || !pwOrdinals || !pszFuncNames) {
-		std::cerr << "Some PE fields are just not okay!" << std::endl;
+		std::cerr << "Some PE fields are just not okay during DLL exports parsing!" << std::endl;
 		return -1;
 	}
 	size_t forwarders = 0, data = 0;

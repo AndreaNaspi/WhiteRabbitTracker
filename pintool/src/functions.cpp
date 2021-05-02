@@ -79,6 +79,9 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
 		fMap.insert(std::pair<std::string, int>("WaitForSingleObject", WAITOBJ_INDEX));
 		fMap.insert(std::pair<std::string, int>("IcmpSendEcho", ICMPECHO_INDEX));
+		// Other hooks
+		fMap.insert(std::pair<std::string, int>("NtClose", CLOSEH_INDEX)); 
+
 	}
 
 
@@ -249,6 +252,15 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
+					case(CLOSEH_INDEX):
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)CloseHandleHookEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_END);
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)CloseHandleHookExit,
+							IARG_FUNCRET_EXITPOINT_REFERENCE,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
 					default:
 						break;
 				}
@@ -310,6 +322,7 @@ VOID EnumProcessesExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	State::apiOutputs::enumProcessesInformations *pc = &apiOutputs->_enumProcessesInformations;
 	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses;
 	addTaintMemory(ctx, *pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
+	logInfo->logBypass("EnumProcesses");
 }
 
 VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
@@ -560,6 +573,47 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp) {
 	State::apiOutputs::icmpSendEchoInformations *icmpInformations = &apiOutputs->_icmpSendEchoInformations;
 	taintRegisterEax(ctx);
 	addTaintMemory(ctx, *icmpInformations->replyBuffer, *icmpInformations->replySize, TAINT_COLOR_1, true, "IcmpSendEcho");
+}
+
+VOID CloseHandleHookEntry(W::HANDLE* handle) {
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	OBJECT_HANDLE_FLAG_INFORMATION flags;
+	flags.ProtectFromClose = 0;
+	flags.Inherit = 0;
+
+	if (_knobBypass) {
+		W::HANDLE ret = W::CreateMutex(NULL, FALSE, BP_MUTEX);
+		// CloseHandle with status = STATUS_HANDLE_NOT_CLOSABLE
+		if (W::NtQueryObject(*handle, (W::OBJECT_INFORMATION_CLASS)4, &flags, sizeof(OBJECT_HANDLE_FLAG_INFORMATION), 0) >= 0) {
+			if (flags.ProtectFromClose) {
+				apiOutputs->closeHandleStatus = 1;
+				*handle = ret;
+
+			}
+		}
+		// CloseHandle with status = INVALID_HANDLE
+		else {
+			apiOutputs->closeHandleStatus = 2;
+			*handle = ret;
+		}
+	}
+}
+
+VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+
+	if (_knobBypass) {
+		if (apiOutputs->closeHandleStatus == 1) {
+			*ret = 0;
+			logInfo->logBypass("CloseHandle STATUS_HANDLE_NOT_CLOSABLE");
+		}
+		else if (apiOutputs->closeHandleStatus == 2) {
+			W::SetLastError(ERROR_INVALID_HANDLE);
+			*ret = CODEFORINVALIDHANDLE;
+			logInfo->logBypass("CloseHandle STATUS_INVALID_HANDLE");
+		}
+	}
 }
 
 /* END OF API HOOKS */

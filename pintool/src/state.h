@@ -70,6 +70,7 @@ namespace State {
 			ADDRINT* replyBuffer;
 			ADDRINT* replySize;
 		} _icmpSendEchoInformations;
+		ADDRINT closeHandleStatus;
 	};
 
 	/* ===================================================================== */

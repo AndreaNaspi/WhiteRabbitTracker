@@ -66,6 +66,8 @@ VOID SetTimerEntry(W::UINT* time);
 VOID WaitForSingleObjectEntry(W::DWORD *time);
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
 VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
+VOID CloseHandleHookEntry(W::HANDLE* handle);
+VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 
 /* ===================================================================== */
 /* INSTRUCTION HOOKS (taint sinks)                                       */
@@ -87,6 +89,7 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 #define BP_ICMP_ECHO	            200 // milliseconds
 #define BP_FAKEPROCESS              "abc.exe"
 #define BP_FAKEPROCESSW             L"abc.exe"
+#define BP_MUTEX                    "suppli"	
 
 /* ===================================================================== */
 /* Function hooking identifiers                                          */
@@ -108,5 +111,5 @@ enum {
 	SETTIMER_INDEX,
 	WAITOBJ_INDEX,
 	ICMPECHO_INDEX,
-	CLOSEHANDLE_INDEX
+	CLOSEH_INDEX
 };
