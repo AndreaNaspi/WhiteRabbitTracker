@@ -69,7 +69,7 @@ void SpecialInstructionsHandler::regInit(REGSET* regsIn, REGSET* regsOut) {
 /* ===================================================================== */
 void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	static int insCount = 0;
-	ExceptionHandler *eh = ExceptionHandler::getInstance();
+	ExceptionHandler* eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler* specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
 	// check if exist a PENDING EXCEPTION (like for int 2d) and EXECUTE THE EXCEPTION
 	if (eh->isPendingException()) {
@@ -85,12 +85,12 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	}
 	// Get disassembled instruction
 	ADDRINT curEip = INS_Address(ins);
-	std::string diassembled_ins = disassembleInstruction(curEip, INS_Size(ins));
+	std::string disassembled_ins = disassembleInstruction(curEip, INS_Size(ins));
 	// Initialize registries for possible IARG_PARTIAL_CONTEXT
 	REGSET regsIn, regsOut;
 	// Get instruction address
 	// If "cpuid" instruction (log call with relevant registers and alter values to avoid VM/sandbox detection)
-	if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "cpuid") || diassembled_ins.find("cpuid") != std::string::npos) {
+	if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "cpuid") || disassembled_ins.find("cpuid") != std::string::npos) {
 		// Insert a pre-call before cpuid to get the EAX register
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::CpuidCalled,
@@ -106,7 +106,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_END);
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
-	else if (INS_IsRDTSC(ins) || (diassembled_ins.find("rdtsc") != std::string::npos && ((xed_iclass_enum_t)INS_Opcode(ins)) == XED_ICLASS_RDTSC)) {
+	else if (INS_IsRDTSC(ins) || (disassembled_ins.find("rdtsc") != std::string::npos && ((xed_iclass_enum_t)INS_Opcode(ins)) == XED_ICLASS_RDTSC)) {
 		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValues,
@@ -116,22 +116,25 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_END);
 	}
 	// if "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
-	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "int 0x2d") || diassembled_ins.find("int 0x2d") != std::string::npos) {
+	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "int 0x2d") || disassembled_ins.find("int 0x2d") != std::string::npos) {
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::Int2dCalled,
 			IARG_CONTEXT,
 			IARG_ADDRINT, curEip,
 			IARG_END);
 	}
 	// if "in eax, dx" instruction (log and alter values to avoid VMWare detection
-	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || diassembled_ins.find("in eax, dx") != std::string::npos) {
+	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || disassembled_ins.find("in eax, dx") != std::string::npos) {
 		// Insert a post-call to alter ebx register ('in eax, dx' result) in case of 'in eax, dx' instruction (avoid VMWare detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
 			IARG_ADDRINT, curEip,
 			IARG_END);
-
 	}
+	/*
+	else if (disassembled_ins.find("cmp") != std::string::npos && (disassembled_ins.find("0x56") != std::string::npos || disassembled_ins.find("0xFFFFF") != std::string::npos)) {
+		std::cerr << "FOUND " << disassembled_ins.c_str() << std::endl;
+	}*/
 }
 
 /* ===================================================================== */

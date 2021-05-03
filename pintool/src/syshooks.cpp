@@ -28,6 +28,38 @@ addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
 namespace SYSHOOKS {
 
 	/* ===================================================================== */
+	/* Handle the NtDelayExecution API                                       */
+	/* ===================================================================== */
+	VOID NtDelayexecution_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		W::LARGE_INTEGER* li = (W::LARGE_INTEGER*)sc->arg1;
+		W::UINT ll = (-li->QuadPart) / 10000LL;
+		if (ll == 0 || ll > 1000000000)
+			return;
+
+		FetchTimeState;
+		tinfo->sleepMs += ll;
+		tinfo->sleepMsTick += ll;
+		if (tinfo->lastMs == ll) {
+			tinfo->numLastMs++;
+		}
+		else {
+			tinfo->lastMs = ll;
+			tinfo->numLastMs = 0;
+		}
+
+		// Reset the sleep value
+		if (tinfo->numLastMs >= 5) {
+			li->QuadPart = 0;
+		}
+		else {
+			if (tinfo->sleepTime == 0)
+				li->QuadPart = -BP_TIMER * 10000LL;
+			else
+				li->QuadPart = -tinfo->sleepTime * 10000LL;
+		}
+	}
+
+	/* ===================================================================== */
 	/* Handle the NtCreateFile API (Virtualbox/VMware files access)          */
 	/* ===================================================================== */
 	VOID NtCreateFile_entry(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std) {
@@ -38,15 +70,19 @@ namespace SYSHOOKS {
 		char value[PATH_BUFSIZE];
 		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE); 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
-			for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
-				if (_knobBypass) {
+			if (_knobBypass) {
+				for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
 					char logName[256] = "NtCreateFile ";
 					strcat(logName, value);
 					logModule->logBypass(logName);
-					memcpy((char *)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
-					PIN_SafeCopy((char *)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
+					memcpy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
+					PIN_SafeCopy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 				}
+				/*
+				ADDRINT _eax = 0xFFFFFFFF;
+				PIN_SetContextReg(ctx, REG_GAX, _eax);*/
 			}
+
 			// High false positive rate, taint only suspicious files
 			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
 		}

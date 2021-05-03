@@ -236,6 +236,8 @@ namespace SYSHOOKING {
 	}
 
 	static VOID registerHooks() {
+		// Handle the NtDelayExecution API
+		sysEntryHooks[lookupIndex("NtDelayExecution")] = &SYSHOOKS::NtDelayexecution_entry;
 		// Handle the NtCreateFile API (Virtualbox/VMware files access) 
 		sysEntryHooks[lookupIndex("NtCreateFile")] = &SYSHOOKS::NtCreateFile_entry;
 		// Handle the NtOpenKey API (registry access)
