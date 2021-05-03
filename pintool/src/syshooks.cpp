@@ -85,6 +85,20 @@ namespace SYSHOOKS {
 					PIN_SafeCopy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 				}
 			}
+		}
+	}
+
+	/* ===================================================================== */
+	/* Handle the NtCreateFile API (Virtualbox/VMware files access)          */
+	/* ===================================================================== */
+	VOID NtCreateFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg2;
+		W::ULONG mode = (W::ULONG)sc->arg7;
+		W::PUNICODE_STRING p = Obj->ObjectName;
+
+		char value[PATH_BUFSIZE];
+		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE);
+		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			// High false positive rate, taint only suspicious files
 			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
 		}
@@ -219,6 +233,42 @@ namespace SYSHOOKS {
 
 				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
+		}
+	}
+
+	/* ===================================================================== */
+	/* Handle the NtQueryAttributesFile API (file information access)        */
+	/* ===================================================================== */
+	VOID NtQueryAttributesFile_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg0;
+		W::PUNICODE_STRING p = Obj->ObjectName;
+
+		char value[PATH_BUFSIZE];
+		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE); 
+
+		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+			char logName[256] = "NtQueryAttributesFile ";
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
+				PIN_SafeCopy((char*)p->Buffer + i, WSTR_FILE, sizeof(wchar_t));
+			}
+		}
+
+	}
+
+	/* ===================================================================== */
+	/* Handle the NtQueryAttributesFile API (file information access)        */
+	/* ===================================================================== */
+	VOID NtQueryAttributesFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg0;
+		W::PUNICODE_STRING p = Obj->ObjectName;
+
+		char value[PATH_BUFSIZE];
+		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE);
+
+		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtQueryAttributesFile");
 		}
 	}
 

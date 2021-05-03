@@ -19,13 +19,17 @@
 #define BP_FAKEPROCESSW             L"abc.exe"
 #define STR_QSI				        "a"
 #define WSTR_CREATEFILE		        L"a"
+#define WSTR_FILE			        L"a"
 #define PATH_BUFSIZE	            512
 
 namespace SYSHOOKS {
 	VOID NtDelayexecution_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 	VOID NtCreateFile_entry(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
+	VOID NtCreateFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 	VOID NtOpenKey_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
 	VOID NtQueryInformationProcess_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
 	VOID NtQuerySystemInformation_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
+	VOID NtQueryAttributesFile_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
+	VOID NtQueryAttributesFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 	VOID NtUserFindWindowEx_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 }

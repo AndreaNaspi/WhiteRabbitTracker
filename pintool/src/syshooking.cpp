@@ -240,6 +240,7 @@ namespace SYSHOOKING {
 		sysEntryHooks[lookupIndex("NtDelayExecution")] = &SYSHOOKS::NtDelayexecution_entry;
 		// Handle the NtCreateFile API (Virtualbox/VMware files access) 
 		sysEntryHooks[lookupIndex("NtCreateFile")] = &SYSHOOKS::NtCreateFile_entry;
+		sysExitHooks[lookupIndex("NtCreateFile")] = &SYSHOOKS::NtCreateFile_exit;
 		// Handle the NtOpenKey API (registry access)
 		sysExitHooks[lookupIndex("NtOpenKey")] = &SYSHOOKS::NtOpenKey_exit;
 		sysExitHooks[lookupIndex("NtOpenKeyEx")] = &SYSHOOKS::NtOpenKey_exit;
@@ -247,6 +248,9 @@ namespace SYSHOOKING {
 		sysExitHooks[lookupIndex("NtQueryInformationProcess")] = &SYSHOOKS::NtQueryInformationProcess_exit;
 		// Handle the NtQuerySystemInformation API (firmware table access)
 		sysExitHooks[lookupIndex("NtQuerySystemInformation")] = &SYSHOOKS::NtQuerySystemInformation_exit;
+		// Handle the NtQueryAttributesFile API (file information access) 
+		sysEntryHooks[lookupIndex("NtQueryAttributesFile")] = &SYSHOOKS::NtQueryAttributesFile_entry;
+		sysExitHooks[lookupIndex("NtQueryAttributesFile")] = &SYSHOOKS::NtQueryAttributesFile_exit;
 		// Win32 system APIs (embedded ordinals)
 		win32sysExitHooks[NTUSERFINDWINDOWSEX] = &SYSHOOKS::NtUserFindWindowEx_exit;
 
