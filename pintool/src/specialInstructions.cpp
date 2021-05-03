@@ -133,10 +133,6 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_ADDRINT, curEip,
 			IARG_END);
 	}
-	/*
-	else if (disassembled_ins.find("cmp") != std::string::npos && (disassembled_ins.find("0x56") != std::string::npos || disassembled_ins.find("0xFFFFF") != std::string::npos)) {
-		std::cerr << "FOUND " << disassembled_ins.c_str() << std::endl;
-	}*/
 }
 
 /* ===================================================================== */
@@ -243,7 +239,7 @@ void SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDR
 		// Change return value (ebx) of the instruction 'in eax, dx'
 		ADDRINT _ebx = 0;
 		PIN_SetContextReg(ctxt, REG_GBX, _ebx);
-		classHandler->logInfo->logBypass("IN EAX,DX");
+		classHandler->logInfo->logBypass("IN EAX, DX");
 	}
 	// Taint the registers
 	TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);

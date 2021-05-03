@@ -2,6 +2,14 @@
 #include "pin.H"
 #include <iostream>
 
+bool lookupSubstring(const char* str, char** strings) {
+	while (*strings) {
+		if (strstr(str, *strings)) return true;
+		strings++;
+	}
+	return false;
+}
+
 namespace HiddenElements {
 
 	bool KTM[MAX_NUMHOOKS];
@@ -306,14 +314,6 @@ namespace HiddenElements {
 			copyArrayOfStringRefs(defaultWMIQueryFail, WMIQueryFail);
 		else
 			copyArrayOfStringRefs(strings, WMIQueryFail);
-	}
-
-	static inline bool lookupSubstring(const char* str, char** strings) {
-		while (*strings) {
-			if (strstr(str, *strings)) return true;
-			strings++;
-		}
-		return false;
 	}
 
 	bool shouldHideProcessStr(const char* procNameUpper) {

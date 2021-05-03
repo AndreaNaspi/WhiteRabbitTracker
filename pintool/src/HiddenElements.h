@@ -6,6 +6,8 @@ Check HiddenElements.cpp for processes, files, registry
 key or values, and other artifacts you want to hide.
 **/
 
+bool lookupSubstring(const char* str, char** strings);
+
 namespace HiddenElements {
 #define MAX_NUMHOOKS		100
 #define MAX_HOOKS_IN_GROUP	64

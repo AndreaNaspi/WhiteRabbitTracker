@@ -38,7 +38,6 @@ public:
 	/* ===================================================================== */
 	static SpecialInstructionsHandler* getInstance();
 
-
 	/* ===================================================================== */
 	/* Function to check for specific special instruction and insert handlers*/
 	/* ===================================================================== */

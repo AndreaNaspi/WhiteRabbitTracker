@@ -71,6 +71,12 @@ namespace SYSHOOKS {
 		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE); 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			if (_knobBypass) {
+				//VBOXGUEST pass for Obsidium anti-dbi
+				/*
+				char* vBoxGuestFIle[] = { "VBOXGUEST", NULL };
+				if (lookupSubstring(value, vBoxGuestFIle))
+					return;
+				*/
 				for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
 					char logName[256] = "NtCreateFile ";
 					strcat(logName, value);
@@ -78,9 +84,6 @@ namespace SYSHOOKS {
 					memcpy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 					PIN_SafeCopy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 				}
-				/*
-				ADDRINT _eax = 0xFFFFFFFF;
-				PIN_SetContextReg(ctx, REG_GAX, _eax);*/
 			}
 			// High false positive rate, taint only suspicious files
 			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
@@ -140,10 +143,10 @@ namespace SYSHOOKS {
 				// Gives Pin away as a debugger
 				if (_knobBypass) {
 					logModule->logBypass("NtQueryInformationProcess ProcessDebugFlags");
-					*((W::ULONG *)ProcessInformation) = PROCESS_DEBUG_INHERIT;
+					*((W::ULONG*)ProcessInformation) = PROCESS_DEBUG_INHERIT;
 				}
 				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugFlags");
-			}
+			}			
 			else if (ProcessInformationClass == ProcessDebugObjectHandle) {
 				// Set return value to STATUS_PORT_NOT_SET
 				if (_knobBypass) {
@@ -165,7 +168,6 @@ namespace SYSHOOKS {
 				*ReturnLength = backupReturnLength;
 			}
 		}
-
 	}
 
 	/* ===================================================================== */
