@@ -66,6 +66,8 @@ VOID SetTimerEntry(W::UINT* time);
 VOID WaitForSingleObjectEntry(W::DWORD *time);
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
 VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
+VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2);
+VOID FindWindowHookExit(CONTEXT* ctx, W::BOOL* ret, ADDRINT esp);
 VOID CloseHandleHookEntry(W::HANDLE* handle);
 VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 
@@ -90,6 +92,10 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 #define BP_FAKEPROCESS              "abc.exe"
 #define BP_FAKEPROCESSW             L"abc.exe"
 #define BP_MUTEX                    "suppli"	
+#define STR_GUI_1A	                "W" 
+#define STR_GUI_1B	                "a"
+#define STR_GUI_2	                "WantSuppli"
+#define STR_GUI_2B	                "s"
 
 /* ===================================================================== */
 /* Function hooking identifiers                                          */
@@ -111,5 +117,6 @@ enum {
 	SETTIMER_INDEX,
 	WAITOBJ_INDEX,
 	ICMPECHO_INDEX,
+	FINDWINDOW_INDEX,
 	CLOSEH_INDEX
 };

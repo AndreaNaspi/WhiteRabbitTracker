@@ -69,6 +69,7 @@ void SpecialInstructionsHandler::regInit(REGSET* regsIn, REGSET* regsOut) {
 /* ===================================================================== */
 void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	static int insCount = 0;
+	static ADDRINT rdtscCount = 0;
 	ExceptionHandler* eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler* specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
 	// check if exist a PENDING EXCEPTION (like for int 2d) and EXECUTE THE EXCEPTION
@@ -113,6 +114,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_INST_PTR,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
 			IARG_ADDRINT, curEip,
+			IARG_PTR, &rdtscCount,
 			IARG_END);
 	}
 	// if "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
@@ -195,8 +197,9 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 /* ===================================================================== */
 /* Function to handle the rdtsc instruction                              */
 /* ===================================================================== */
-void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
+void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip, ADDRINT *rdtscCount) {
 	CHECK_EIP_ADDRESS(cur_eip);
+	(*rdtscCount)++;
 	// Handle and bypass the instruction
 	State::globalState* gs = State::getGlobalState();
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
@@ -208,7 +211,8 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 		gs->_timeInfo.sleepMs = 0;
 		PIN_SetContextReg(ctxt, REG_GAX, gs->_timeInfo._eax);
 		PIN_SetContextReg(ctxt, REG_GDX, gs->_timeInfo._edx);
-		// classHandler->logInfo->logBypass("RDTSC"); // very high load
+		if((*rdtscCount) <= MAX_RDTSC) // very high load
+			classHandler->logInfo->logBypass("RDTSC"); 
 	}
 	// Taint the registers
 	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);

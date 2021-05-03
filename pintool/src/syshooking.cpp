@@ -247,6 +247,8 @@ namespace SYSHOOKING {
 		sysExitHooks[lookupIndex("NtQueryInformationProcess")] = &SYSHOOKS::NtQueryInformationProcess_exit;
 		// Handle the NtQuerySystemInformation API (firmware table access)
 		sysExitHooks[lookupIndex("NtQuerySystemInformation")] = &SYSHOOKS::NtQuerySystemInformation_exit;
+		// Win32 system APIs (embedded ordinals)
+		win32sysExitHooks[NTUSERFINDWINDOWSEX] = &SYSHOOKS::NtUserFindWindowEx_exit;
 
 		// Register analysis callbacks for Pin
 		PIN_AddSyscallEntryFunction(&SyscallEntry, NULL);

@@ -82,7 +82,6 @@ namespace SYSHOOKS {
 				ADDRINT _eax = 0xFFFFFFFF;
 				PIN_SetContextReg(ctx, REG_GAX, _eax);*/
 			}
-
 			// High false positive rate, taint only suspicious files
 			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
 		}
@@ -219,5 +218,44 @@ namespace SYSHOOKS {
 				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
 		}
+	}
+
+	/* ===================================================================== */
+	/* Handle the NtUserFindWindowEx API (Virtualbox/VMware window access)   */
+	/* ===================================================================== */
+	VOID NtUserFindWindowEx_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		W::PUNICODE_STRING path1 = (W::PUNICODE_STRING)sc->arg2;
+		W::PUNICODE_STRING path2 = (W::PUNICODE_STRING)sc->arg3;
+
+		char value[PATH_BUFSIZE] = { 0 };
+
+		if (_knobBypass) {
+			// Bypass the first path
+			if (path1 != NULL && path1->Buffer != NULL) {
+				GET_STR_TO_UPPER(path1->Buffer, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideWindowStr(value)) {
+					char logName[256] = "FindWindow ";
+					strcat(logName, value);
+					logModule->logBypass(logName);
+					ADDRINT _eax = 0;
+					PIN_SetContextReg(ctx, REG_GAX, _eax);
+				}
+			}
+
+			// Bypass the second path
+			if (path2 != NULL && path2->Buffer != NULL) {
+				memset(value, 0, PATH_BUFSIZE);
+				GET_STR_TO_UPPER(path2->Buffer, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideWindowStr(value)) {
+					char logName[256] = "FindWindow ";
+					strcat(logName, value);
+					logModule->logBypass(logName);					
+					ADDRINT _eax = 0;
+					PIN_SetContextReg(ctx, REG_GAX, _eax);
+				}
+			}
+		}
+		// Taint registry handler
+		TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 	}
 }

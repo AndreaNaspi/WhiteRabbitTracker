@@ -80,6 +80,9 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("WaitForSingleObject", WAITOBJ_INDEX));
 		fMap.insert(std::pair<std::string, int>("IcmpSendEcho", ICMPECHO_INDEX));
 		// Other hooks
+		fMap.insert(std::pair<std::string, int>("FindWindow", FINDWINDOW_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindWindowW", FINDWINDOW_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindWindowA", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("NtClose", CLOSEH_INDEX)); 
 
 	}
@@ -249,6 +252,19 @@ namespace Functions {
 						// Add hooking with IPOINT_AFTER to taint the memory on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IcmpSendEchoExit,
 							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case(FINDWINDOW_INDEX):
+						// Add hooking with IPOINT_BEFORE to bypass the window parameters
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)FindWindowHookEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the registry on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)FindWindowHookExit,
+							IARG_CONTEXT,
+							IARG_FUNCRET_EXITPOINT_REFERENCE,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
@@ -573,6 +589,59 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp) {
 	State::apiOutputs::icmpSendEchoInformations *icmpInformations = &apiOutputs->_icmpSendEchoInformations;
 	taintRegisterEax(ctx);
 	addTaintMemory(ctx, *icmpInformations->replyBuffer, *icmpInformations->replySize, TAINT_COLOR_1, true, "IcmpSendEcho");
+}
+
+VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2) {
+	char value[PATH_BUFSIZE] = { 0 };
+	if (_knobBypass) {
+		char logName[256] = "FindWindow ";
+		// Bypass the first path
+		if (path1 != NULL && *path1 != NULL && (char*)*path1 != "") {
+			GET_STR_TO_UPPER((char*)*path1, value, PATH_BUFSIZE);
+			if (HiddenElements::shouldHideWindowStr(value)) {
+				strcat(logName, value);
+				logModule->logBypass(logName);
+				*path1 = STR_GUI_1A;
+				return;
+			}
+
+			memset(value, 0, sizeof(value));
+			GET_WSTR_TO_UPPER(*path1, value, PATH_BUFSIZE);
+			if (HiddenElements::shouldHideWindowStr(value)) {
+				strcat(logName, value);
+				logModule->logBypass(logName);
+				*path1 = STR_GUI_1B;
+				return;
+			}
+		}
+
+		// Bypass the second path
+		if ((path2 != NULL && *path2 != NULL && (char*)*path2 != "")) {
+			memset(value, 0, sizeof(value));
+			GET_STR_TO_UPPER((char*)*path2, value, PATH_BUFSIZE);
+			if (HiddenElements::shouldHideWindowStr(value)) {
+				strcat(logName, value);
+				logModule->logBypass(logName);
+				*path2 = STR_GUI_2;
+				return;
+			}
+
+			memset(value, 0, sizeof(value));
+			GET_WSTR_TO_UPPER(*path2, value, PATH_BUFSIZE);
+			if (HiddenElements::shouldHideWindowStr(value)) {
+				strcat(logName, value);
+				logModule->logBypass(logName);
+				*path2 = STR_GUI_2B;
+				return;
+			}
+		}
+	}
+}
+
+VOID FindWindowHookExit(CONTEXT* ctx, W::BOOL* ret, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Taint source: API return value
+	taintRegisterEax(ctx);
 }
 
 VOID CloseHandleHookEntry(W::HANDLE* handle) {

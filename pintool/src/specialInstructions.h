@@ -16,6 +16,8 @@
 #include <iostream>
 #include <fstream>
 
+#define MAX_RDTSC 5
+
 class SpecialInstructionsHandler
 {
 public:
@@ -56,7 +58,7 @@ public:
 	/* ===================================================================== */
 	/* Function to handle the rdtsc instruction                              */
 	/* ===================================================================== */
-	static void AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip);
+	static void AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip, ADDRINT *rdtscCount);
 
 	/* ===================================================================== */
 	/* Function to handle the int 2d and log the instruction                 */

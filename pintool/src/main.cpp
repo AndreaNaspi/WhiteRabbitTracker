@@ -69,7 +69,6 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 	// Define iterators 
 	BBL bbl;
 	INS ins;
-	xed_iclass_enum_t ins_indx;
 
 	// Traverse all the BBLs in the trace 
 	for (bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
