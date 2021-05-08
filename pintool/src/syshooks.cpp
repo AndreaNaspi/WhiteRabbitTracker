@@ -72,11 +72,11 @@ namespace SYSHOOKS {
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			if (_knobBypass) {
 				//VBOXGUEST pass for Obsidium anti-dbi
-				/*
+#if 0
 				char* vBoxGuestFIle[] = { "VBOXGUEST", NULL };
 				if (lookupSubstring(value, vBoxGuestFIle))
 					return;
-				*/
+#endif
 				for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
 					char logName[256] = "NtCreateFile ";
 					strcat(logName, value);
@@ -254,7 +254,6 @@ namespace SYSHOOKS {
 				PIN_SafeCopy((char*)p->Buffer + i, WSTR_FILE, sizeof(wchar_t));
 			}
 		}
-
 	}
 
 	/* ===================================================================== */

@@ -49,9 +49,17 @@ namespace State {
 		ADDRINT* lpbDebuggerPresent;
 		ADDRINT  lpProcessInformations;
 		ADDRINT  lpProcessInformationsW;
-		ADDRINT lpCursorPointerInformations;
+		ADDRINT  lpCursorPointerInformations;
 		ADDRINT* lpMemoryInformations;
 		ADDRINT* lpSystemInformations;
+		struct driverBaseNameInformations {
+			W::LPSTR lpDriverBaseName;
+			W::DWORD lpNSize;
+		} _driverBaseNameInformations;
+		struct moduleFileNameInformations {
+			W::LPSTR lpModuleName;
+			W::DWORD lpNSize;
+		} _moduleFileNameInformations;
 		struct enumProcessesInformations {
 			ADDRINT* lpidProcesses;
 			ADDRINT* bytesLpidProcesses;

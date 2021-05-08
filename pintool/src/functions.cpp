@@ -74,6 +74,12 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("GlobalMemoryStatusEx", GLOBALMEMORYSTATUS_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetSystemInfo", GETSYSTEMINFO_INDEX));
 		fMap.insert(std::pair<std::string, int>("GetCursorPos", GETCURSORPOS_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetModuleFileName", GETMODULE_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetModuleFileNameA", GETMODULE_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetModuleFileNameW", GETMODULE_INDEX));
+		fMap.insert(std::pair<std::string, int>("K32GetDeviceDriverBaseName", DEVICEBASE_INDEX));
+		fMap.insert(std::pair<std::string, int>("K32GetDeviceDriverBaseNameA", DEVICEBASE_INDEX));
+		fMap.insert(std::pair<std::string, int>("K32GetDeviceDriverBaseNameW", DEVICEBASE_INDEX));
 		// Time API hooks
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
@@ -83,7 +89,11 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("FindWindow", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("FindWindowW", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("FindWindowA", FINDWINDOW_INDEX));
-		fMap.insert(std::pair<std::string, int>("NtClose", CLOSEH_INDEX)); 
+		fMap.insert(std::pair<std::string, int>("LoadLibraryA", LOADLIBA_INDEX));
+		fMap.insert(std::pair<std::string, int>("LoadLibraryW", LOADLIBW_INDEX));
+		fMap.insert(std::pair<std::string, int>("LoadLibraryExA", LOADLIBA_INDEX));
+		fMap.insert(std::pair<std::string, int>("LoadLibraryExW", LOADLIBW_INDEX));
+		fMap.insert(std::pair<std::string, int>("NtClose", CLOSEH_INDEX)); // CloseHandle
 
 	}
 
@@ -222,6 +232,30 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
+					case(GETMODULE_INDEX):
+						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve module informations)
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetModuleFileNameHookEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 2,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetModuleFileNameHookExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case(DEVICEBASE_INDEX):
+						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve driver informations)
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetDeviceDriverBaseNameHookEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 2,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetDeviceDriverBaseNameHookExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
 					case(GETTICKCOUNT_INDEX):
 						// Add hooking with IPOINT_AFTER to taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetTickCountExit,
@@ -253,6 +287,18 @@ namespace Functions {
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IcmpSendEchoExit,
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case(LOADLIBA_INDEX):
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)LoadLibraryAHook,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_INST_PTR,
+							IARG_END);
+						break;
+					case(LOADLIBW_INDEX):
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)LoadLibraryWHook,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_INST_PTR,
 							IARG_END);
 						break;
 					case(FINDWINDOW_INDEX):
@@ -525,6 +571,104 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 	addTaintMemory(ctx, apiOutputs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
+VOID GetModuleFileNameHookEntry(W::LPTSTR* moduleName, W::DWORD* nSize) {
+	// Store module informations into global variables
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::moduleFileNameInformations* pc = &apiOutputs->_moduleFileNameInformations;
+	pc->lpModuleName = *moduleName;
+	pc->lpNSize = *nSize;
+}
+
+VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::moduleFileNameInformations* pc = &apiOutputs->_moduleFileNameInformations;
+
+	if (pc->lpModuleName == NULL || *pc->lpModuleName == NULL) 
+		return;
+
+	char value[PATH_BUFSIZE];
+	char logName[256] = "GetModuleFileName ";
+
+	GET_STR_TO_UPPER(pc->lpModuleName, value, PATH_BUFSIZE);
+	if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+		// Bypass API return value
+		if (_knobBypass) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			memcpy(pc->lpModuleName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
+		}
+		// Taint source: API return value
+		addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
+		return;
+	}
+
+	memset(value, 0, sizeof(value));
+	GET_WSTR_TO_UPPER(pc->lpModuleName, value, PATH_BUFSIZE);
+
+	if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+		// Bypass API return value
+		if (_knobBypass) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			memcpy(pc->lpModuleName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
+		}
+		// Taint source: API return value
+		addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
+		return;
+	}
+	return;
+}
+
+VOID GetDeviceDriverBaseNameHookEntry(W::LPTSTR* lpBaseName, W::DWORD* nSize) {
+	// Store driver informations into global variables
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::driverBaseNameInformations* pc = &apiOutputs->_driverBaseNameInformations;
+	pc->lpDriverBaseName = *lpBaseName;
+	pc->lpNSize = *nSize;
+}
+
+VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::driverBaseNameInformations* pc = &apiOutputs->_driverBaseNameInformations;
+	if (pc->lpDriverBaseName == NULL || *pc->lpDriverBaseName == NULL)
+		return;
+
+	char value[PATH_BUFSIZE];
+	char logName[256] = "GetDeviceDriverBaseName ";
+
+	GET_STR_TO_UPPER(pc->lpDriverBaseName, value, PATH_BUFSIZE);
+	// Bypass API return value
+	if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+		if (_knobBypass) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			memcpy(pc->lpDriverBaseName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
+		}
+		// Taint source: API return value
+		addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
+		return;
+	}
+
+	memset(value, 0, sizeof(value));
+	GET_WSTR_TO_UPPER(pc->lpDriverBaseName, value, PATH_BUFSIZE);
+	// Bypass API return value
+	if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+		if (_knobBypass) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			memcpy(pc->lpDriverBaseName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
+		}
+		// Taint source: API return value
+		addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
+		return;
+	}
+	return;
+}
+
 VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
@@ -589,6 +733,44 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp) {
 	State::apiOutputs::icmpSendEchoInformations *icmpInformations = &apiOutputs->_icmpSendEchoInformations;
 	taintRegisterEax(ctx);
 	addTaintMemory(ctx, *icmpInformations->replyBuffer, *icmpInformations->replySize, TAINT_COLOR_1, true, "IcmpSendEcho");
+}
+
+VOID LoadLibraryAHook(const char** lib) {
+	if (lib == NULL || *lib == NULL) 
+		return;
+
+	char value[PATH_BUFSIZE];
+	char logName[256] = "LoadLibrary ";
+	GET_STR_TO_UPPER(*lib, value, PATH_BUFSIZE);
+
+	if (strstr(value, "VIRTUALBOX") != NULL || strstr(value, "VBOX") != NULL || strstr(value, "HOOK") != NULL) {
+		if (_knobBypass) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			*lib = BP_FAKEDLL;
+			return;
+		}
+	}
+	return;
+}
+
+VOID LoadLibraryWHook(const wchar_t** lib) { 
+	if (lib == NULL || *lib == NULL) 
+		return;
+
+	char value[PATH_BUFSIZE];
+	char logName[256] = "LoadLibrary ";
+	GET_WSTR_TO_UPPER(*lib, value, PATH_BUFSIZE);
+
+	if (strstr(value, "VIRTUALBOX") != NULL || strstr(value, "VBOX") != NULL || strstr(value, "HOOK") != NULL) {
+		if (_knobBypass) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			*lib = BP_FAKEDLL_W;
+			return;
+		}
+	}
+	return;
 }
 
 VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2) {

@@ -62,10 +62,16 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp);
 VOID GetCursorPosEntry(ADDRINT* pointerToLpPoint);
 VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp);
+VOID GetModuleFileNameHookEntry(W::LPTSTR* moduleName, W::DWORD* nSize);
+VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp);
+VOID GetDeviceDriverBaseNameHookEntry(W::LPTSTR* lpBaseName, W::DWORD* nSize);
+VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp);
 VOID SetTimerEntry(W::UINT* time);
 VOID WaitForSingleObjectEntry(W::DWORD *time);
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
 VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
+VOID LoadLibraryAHook(const char** lib);
+VOID LoadLibraryWHook(const wchar_t** lib);
 VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2);
 VOID FindWindowHookExit(CONTEXT* ctx, W::BOOL* ret, ADDRINT esp);
 VOID CloseHandleHookEntry(W::HANDLE* handle);
@@ -92,10 +98,15 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 #define BP_FAKEPROCESS              "abc.exe"
 #define BP_FAKEPROCESSW             L"abc.exe"
 #define BP_MUTEX                    "suppli"	
+#define BP_FAKEDRV		            "vga.sys"
+#define BP_FAKEDRV_W	            L"vga.sys"
+#define BP_FAKEDLL		            "sup.dll"
+#define BP_FAKEDLL_W	            L"sup.dll"
 #define STR_GUI_1A	                "W" 
 #define STR_GUI_1B	                "a"
 #define STR_GUI_2	                "WantSuppli"
 #define STR_GUI_2B	                "s"
+
 
 /* ===================================================================== */
 /* Function hooking identifiers                                          */
@@ -113,10 +124,14 @@ enum {
 	GLOBALMEMORYSTATUS_INDEX,
 	GETSYSTEMINFO_INDEX,
 	GETCURSORPOS_INDEX = 32, 
+	GETMODULE_INDEX,
+	DEVICEBASE_INDEX,
 	GETTICKCOUNT_INDEX,
 	SETTIMER_INDEX,
 	WAITOBJ_INDEX,
 	ICMPECHO_INDEX,
+	LOADLIBA_INDEX,
+	LOADLIBW_INDEX,
 	FINDWINDOW_INDEX,
 	CLOSEH_INDEX
 };
