@@ -86,13 +86,15 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("WaitForSingleObject", WAITOBJ_INDEX));
 		fMap.insert(std::pair<std::string, int>("IcmpSendEcho", ICMPECHO_INDEX));
 		// Other hooks
-		fMap.insert(std::pair<std::string, int>("FindWindow", FINDWINDOW_INDEX));
-		fMap.insert(std::pair<std::string, int>("FindWindowW", FINDWINDOW_INDEX));
-		fMap.insert(std::pair<std::string, int>("FindWindowA", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("LoadLibraryA", LOADLIBA_INDEX));
 		fMap.insert(std::pair<std::string, int>("LoadLibraryW", LOADLIBW_INDEX));
 		fMap.insert(std::pair<std::string, int>("LoadLibraryExA", LOADLIBA_INDEX));
 		fMap.insert(std::pair<std::string, int>("LoadLibraryExW", LOADLIBW_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetUserNameA", GETUSERNAME_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetUserNameW", GETUSERNAME_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindWindow", FINDWINDOW_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindWindowW", FINDWINDOW_INDEX));
+		fMap.insert(std::pair<std::string, int>("FindWindowA", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("NtClose", CLOSEH_INDEX)); // CloseHandle
 
 	}
@@ -301,6 +303,18 @@ namespace Functions {
 							IARG_INST_PTR,
 							IARG_END);
 						break;
+					case(GETUSERNAME_INDEX):
+						// Add hooking with IPOINT_BEFORE to bypass the username parameters
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetUsernameEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetUsernameExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
 					case(FINDWINDOW_INDEX):
 						// Add hooking with IPOINT_BEFORE to bypass the window parameters
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)FindWindowHookEntry,
@@ -383,8 +397,8 @@ VOID EnumProcessesExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
 	State::apiOutputs::enumProcessesInformations *pc = &apiOutputs->_enumProcessesInformations;
 	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses;
-	addTaintMemory(ctx, *pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 	logInfo->logBypass("EnumProcesses");
+	addTaintMemory(ctx, *pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
 VOID Process32FirstNextEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
@@ -592,32 +606,31 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 	char logName[256] = "GetModuleFileName ";
 
 	GET_STR_TO_UPPER(pc->lpModuleName, value, PATH_BUFSIZE);
-	if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+	if (_knobBypass) {
 		// Bypass API return value
-		if (_knobBypass) {
+		if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+			memcpy(pc->lpModuleName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
 			strcat(logName, value);
 			logModule->logBypass(logName);
-			memcpy(pc->lpModuleName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
 		}
-		// Taint source: API return value
-		addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
-		return;
 	}
 
 	memset(value, 0, sizeof(value));
 	GET_WSTR_TO_UPPER(pc->lpModuleName, value, PATH_BUFSIZE);
 
-	if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+	if (_knobBypass) {
 		// Bypass API return value
-		if (_knobBypass) {
+		if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+			memcpy(pc->lpModuleName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
 			strcat(logName, value);
 			logModule->logBypass(logName);
-			memcpy(pc->lpModuleName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
 		}
 		// Taint source: API return value
 		addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		return;
 	}
+	// Taint source: API return value
+	addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 	return;
 }
 
@@ -642,30 +655,26 @@ VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 
 	GET_STR_TO_UPPER(pc->lpDriverBaseName, value, PATH_BUFSIZE);
 	// Bypass API return value
-	if (HiddenElements::shouldHideGenericFileNameStr(value)) {
-		if (_knobBypass) {
+	if (_knobBypass) {
+		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+			memcpy(pc->lpDriverBaseName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
 			strcat(logName, value);
 			logModule->logBypass(logName);
-			memcpy(pc->lpDriverBaseName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
 		}
-		// Taint source: API return value
-		addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
-		return;
 	}
 
 	memset(value, 0, sizeof(value));
 	GET_WSTR_TO_UPPER(pc->lpDriverBaseName, value, PATH_BUFSIZE);
 	// Bypass API return value
-	if (HiddenElements::shouldHideGenericFileNameStr(value)) {
-		if (_knobBypass) {
+	if (_knobBypass) {
+		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+			memcpy(pc->lpDriverBaseName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
 			strcat(logName, value);
 			logModule->logBypass(logName);
-			memcpy(pc->lpDriverBaseName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
 		}
-		// Taint source: API return value
-		addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
-		return;
 	}
+	// Taint source: API return value
+	addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
 	return;
 }
 
@@ -743,8 +752,8 @@ VOID LoadLibraryAHook(const char** lib) {
 	char logName[256] = "LoadLibrary ";
 	GET_STR_TO_UPPER(*lib, value, PATH_BUFSIZE);
 
-	if (strstr(value, "VIRTUALBOX") != NULL || strstr(value, "VBOX") != NULL || strstr(value, "HOOK") != NULL) {
-		if (_knobBypass) {
+	if (_knobBypass) {
+		if (strstr(value, "VIRTUALBOX") != NULL || strstr(value, "VBOX") != NULL || strstr(value, "HOOK") != NULL) {
 			strcat(logName, value);
 			logModule->logBypass(logName);
 			*lib = BP_FAKEDLL;
@@ -762,8 +771,8 @@ VOID LoadLibraryWHook(const wchar_t** lib) {
 	char logName[256] = "LoadLibrary ";
 	GET_WSTR_TO_UPPER(*lib, value, PATH_BUFSIZE);
 
-	if (strstr(value, "VIRTUALBOX") != NULL || strstr(value, "VBOX") != NULL || strstr(value, "HOOK") != NULL) {
-		if (_knobBypass) {
+	if (_knobBypass) {
+		if (strstr(value, "VIRTUALBOX") != NULL || strstr(value, "VBOX") != NULL || strstr(value, "HOOK") != NULL) {
 			strcat(logName, value);
 			logModule->logBypass(logName);
 			*lib = BP_FAKEDLL_W;
@@ -773,48 +782,96 @@ VOID LoadLibraryWHook(const wchar_t** lib) {
 	return;
 }
 
+VOID GetUsernameEntry(W::LPTSTR* lpBuffer, W::LPDWORD* nSize) {
+	// Store username informations into global variables
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::usernameInformations* pc = &apiOutputs->_usernameInformations;
+	pc->usernameBuffer = *lpBuffer;
+	pc->lpNSize = *nSize;
+}
+
+VOID GetUsernameExit(CONTEXT* ctx, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::usernameInformations* pc = &apiOutputs->_usernameInformations;
+	if (pc->usernameBuffer == NULL || *pc->usernameBuffer == NULL)
+		return;
+
+	char value[PATH_BUFSIZE];
+	char logName[256] = "GetUsername ";
+
+	GET_STR_TO_UPPER(pc->usernameBuffer, value, PATH_BUFSIZE);
+	// Bypass API return value
+	if (_knobBypass) {
+		if (HiddenElements::shouldHideUsernameStr(value)) {
+			memcpy(pc->usernameBuffer, BP_FAKEUSERNAME, sizeof(BP_FAKEUSERNAME));
+			strcat(logName, value);
+			logModule->logBypass(logName);
+		}
+	}
+
+	memset(value, 0, sizeof(value));
+	GET_WSTR_TO_UPPER(pc->usernameBuffer, value, PATH_BUFSIZE);
+	// Bypass API return value
+	if (_knobBypass) {
+		if (HiddenElements::shouldHideUsernameStr(value)) {
+			memcpy(pc->usernameBuffer, BP_FAKEUSERNAME_W, sizeof(BP_FAKEUSERNAME_W));
+			strcat(logName, value);
+			logModule->logBypass(logName);
+		}
+	}
+	// Taint source: API return value
+	addTaintMemory(ctx, (ADDRINT)pc->usernameBuffer, *pc->lpNSize, TAINT_COLOR_1, true, "GetUsername");
+	return;
+}
+
 VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2) {
 	char value[PATH_BUFSIZE] = { 0 };
 	if (_knobBypass) {
 		char logName[256] = "FindWindow ";
 		// Bypass the first path
-		if (path1 != NULL && *path1 != NULL && (char*)*path1 != "") {
-			GET_STR_TO_UPPER((char*)*path1, value, PATH_BUFSIZE);
-			if (HiddenElements::shouldHideWindowStr(value)) {
-				strcat(logName, value);
-				logModule->logBypass(logName);
-				*path1 = STR_GUI_1A;
-				return;
-			}
+		if (_knobBypass) {
+			if (path1 != NULL && *path1 != NULL && (char*)*path1 != "") {
+				GET_STR_TO_UPPER((char*)*path1, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideWindowStr(value)) {
+					strcat(logName, value);
+					logModule->logBypass(logName);
+					*path1 = STR_GUI_1A;
+					return;
+				}
 
-			memset(value, 0, sizeof(value));
-			GET_WSTR_TO_UPPER(*path1, value, PATH_BUFSIZE);
-			if (HiddenElements::shouldHideWindowStr(value)) {
-				strcat(logName, value);
-				logModule->logBypass(logName);
-				*path1 = STR_GUI_1B;
-				return;
+				memset(value, 0, sizeof(value));
+				GET_WSTR_TO_UPPER(*path1, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideWindowStr(value)) {
+					strcat(logName, value);
+					logModule->logBypass(logName);
+					*path1 = STR_GUI_1B;
+					return;
+				}
 			}
 		}
 
 		// Bypass the second path
-		if ((path2 != NULL && *path2 != NULL && (char*)*path2 != "")) {
-			memset(value, 0, sizeof(value));
-			GET_STR_TO_UPPER((char*)*path2, value, PATH_BUFSIZE);
-			if (HiddenElements::shouldHideWindowStr(value)) {
-				strcat(logName, value);
-				logModule->logBypass(logName);
-				*path2 = STR_GUI_2;
-				return;
-			}
+		if (_knobBypass) {
+			if ((path2 != NULL && *path2 != NULL && (char*)*path2 != "")) {
+				memset(value, 0, sizeof(value));
+				GET_STR_TO_UPPER((char*)*path2, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideWindowStr(value)) {
+					strcat(logName, value);
+					logModule->logBypass(logName);
+					*path2 = STR_GUI_2;
+					return;
+				}
 
-			memset(value, 0, sizeof(value));
-			GET_WSTR_TO_UPPER(*path2, value, PATH_BUFSIZE);
-			if (HiddenElements::shouldHideWindowStr(value)) {
-				strcat(logName, value);
-				logModule->logBypass(logName);
-				*path2 = STR_GUI_2B;
-				return;
+				memset(value, 0, sizeof(value));
+				GET_WSTR_TO_UPPER(*path2, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideWindowStr(value)) {
+					strcat(logName, value);
+					logModule->logBypass(logName);
+					*path2 = STR_GUI_2B;
+					return;
+				}
 			}
 		}
 	}

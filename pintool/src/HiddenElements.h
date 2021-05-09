@@ -21,6 +21,7 @@ namespace HiddenElements {
 	bool shouldHideReqQueryValueStr(const char* strUpper);
 	bool shouldHideGenericFileNameStr(const char* strUpper);
 	bool shouldHideWindowStr(const char* strUpper);
+	bool shouldHideUsernameStr(const char* strUpper);
 	bool shouldWMIQueryFail(const char* strUpper);
 
 	extern char* hiddenProcesses[MAX_HOOKS_IN_GROUP];
@@ -49,6 +50,7 @@ namespace HiddenElements {
 	void updateRegQueryValueStrings(char** strings);
 	void updateGenericFileNames(char** fileNames);
 	void updateWindowNames(char** windowsNames);
+	void updateUsernames(char** usernamesList);
 	void updateWMIQueryFail(char** strings);
 	void setGroup(int groupID, bool value);
 

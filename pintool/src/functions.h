@@ -72,6 +72,8 @@ VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time)
 VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 VOID LoadLibraryAHook(const char** lib);
 VOID LoadLibraryWHook(const wchar_t** lib);
+VOID GetUsernameEntry(W::LPTSTR* lpBuffer, W::LPDWORD* nSize);
+VOID GetUsernameExit(CONTEXT* ctx, ADDRINT esp);
 VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2);
 VOID FindWindowHookExit(CONTEXT* ctx, W::BOOL* ret, ADDRINT esp);
 VOID CloseHandleHookEntry(W::HANDLE* handle);
@@ -102,6 +104,8 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 #define BP_FAKEDRV_W	            L"vga.sys"
 #define BP_FAKEDLL		            "sup.dll"
 #define BP_FAKEDLL_W	            L"sup.dll"
+#define BP_FAKEUSERNAME	            "sup"
+#define BP_FAKEUSERNAME_W	        L"sup"
 #define STR_GUI_1A	                "W" 
 #define STR_GUI_1B	                "a"
 #define STR_GUI_2	                "WantSuppli"
@@ -132,6 +136,7 @@ enum {
 	ICMPECHO_INDEX,
 	LOADLIBA_INDEX,
 	LOADLIBW_INDEX,
+	GETUSERNAME_INDEX,
 	FINDWINDOW_INDEX,
 	CLOSEH_INDEX
 };

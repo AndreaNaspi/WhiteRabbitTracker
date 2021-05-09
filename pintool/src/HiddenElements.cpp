@@ -19,6 +19,7 @@ namespace HiddenElements {
 	char* regQueryValueStrings[MAX_HOOKS_IN_GROUP];
 	char* genericFilenames[MAX_HOOKS_IN_GROUP];
 	char* windowNames[MAX_HOOKS_IN_GROUP];
+	char* usernames[MAX_HOOKS_IN_GROUP];
 	char* WMIQueryFail[MAX_HOOKS_IN_GROUP];
 
 	char* defaultHiddenProcesses[] = {
@@ -59,6 +60,13 @@ namespace HiddenElements {
 		NULL
 	};
 
+	char* defaultUsernames[] = {
+		"CURRENTUSER", "SANDBOX", "SAND BOX", "EMILY", "HAPUBWS", "HONG LEE", "IT-ADMIN", "JOHNSON", "MILLER", "MILOZS",
+		"PETER WILSON", "TIMMY", "MALWARE", "MALTEST", "VIRUS", "JOHN DOE", 
+		NULL
+	};
+
+
 	char* defaultWMIQueryFail[] = {
 		"PNPENTITY", "NTEVENTLOGFILE", "LOGICALDISK",
 		"BIOS", "NETWORKADAPTER", "PROCESSOR",
@@ -82,6 +90,7 @@ namespace HiddenElements {
 		updateRegQueryValueStrings(NULL);
 		updateGenericFileNames(NULL);
 		updateWindowNames(NULL);
+		updateUsernames(NULL);
 		updateWMIQueryFail(NULL);
 		int i;
 		for (i = 0; i < MAX_NUMHOOKS; i++) {
@@ -309,6 +318,13 @@ namespace HiddenElements {
 			copyArrayOfStringRefs(windowsNames, windowNames);
 	}
 
+	void updateUsernames(char** usernamesList) {
+		if (!usernamesList)
+			copyArrayOfStringRefs(defaultUsernames, usernames);
+		else
+			copyArrayOfStringRefs(usernamesList, usernames);
+	}
+
 	void updateWMIQueryFail(char** strings) {
 		if (!strings)
 			copyArrayOfStringRefs(defaultWMIQueryFail, WMIQueryFail);
@@ -334,6 +350,10 @@ namespace HiddenElements {
 
 	bool shouldHideWindowStr(const char* strUpper) {
 		return lookupSubstring(strUpper, windowNames);
+	}
+
+	bool shouldHideUsernameStr(const char* strUpper) {
+		return lookupSubstring(strUpper, usernames);
 	}
 
 	bool shouldWMIQueryFail(const char * strUpper) {

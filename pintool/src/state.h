@@ -78,6 +78,10 @@ namespace State {
 			ADDRINT* replyBuffer;
 			ADDRINT* replySize;
 		} _icmpSendEchoInformations;
+		struct usernameInformations {
+			W::LPSTR usernameBuffer;
+			W::LPDWORD lpNSize;
+		} _usernameInformations;
 		ADDRINT closeHandleStatus;
 	};
 
