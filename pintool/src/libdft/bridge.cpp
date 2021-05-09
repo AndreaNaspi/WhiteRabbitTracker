@@ -414,7 +414,6 @@ mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 		else {
 			TTINFO(logTaintedSystemCode) = 1;
 		}
-		std::cerr << "READ SIZE: " << readSize << std::endl;
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%s; 0x%08x [%d] %s 0x%08x(%d) %s %d\n", alertType.c_str(), addr, (int)TTINFO(tainted), ins.c_str(), memAddress, readSize, REG_StringShort(reg1).c_str(), operandsTainted);
 		logInstruction(tdata, "%s; 0x%08x [%d] %s\n", alertType.c_str(), addr, (int)TTINFO(tainted), instruction.c_str());

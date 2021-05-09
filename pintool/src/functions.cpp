@@ -608,10 +608,12 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 	GET_STR_TO_UPPER(pc->lpModuleName, value, PATH_BUFSIZE);
 	if (_knobBypass) {
 		// Bypass API return value
-		if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+		if (strstr(value, "VBOX") != NULL) {
 			memcpy(pc->lpModuleName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
 			strcat(logName, value);
 			logModule->logBypass(logName);
+			// Taint source: API return value (very high load)
+			addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		}
 	}
 
@@ -620,17 +622,14 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 
 	if (_knobBypass) {
 		// Bypass API return value
-		if (strstr(value, "VBOX") != NULL || strstr(value, "PIN") != NULL) {
+		if (strstr(value, "VBOX") != NULL) {
 			memcpy(pc->lpModuleName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
 			strcat(logName, value);
 			logModule->logBypass(logName);
+			// Taint source: API return value (very high load)
+			addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		}
-		// Taint source: API return value
-		addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
-		return;
 	}
-	// Taint source: API return value
-	addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 	return;
 }
 
