@@ -38,6 +38,19 @@ void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size) {
 	}
 }
 
+/*
+Function used to log the hook name + xor value when tainting memory
+*/
+void logHookId(CONTEXT* ctx, std::string hook_name, ADDRINT start_addr, UINT32 size) {
+	thread_ctx_t* thread_ctx = (thread_ctx_t*)PIN_GetContextReg(ctx, thread_ctx_ptr);
+	pintool_tls* tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
+	ADDRINT hash_context = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
+
+	ADDRINT end_addr = (ADDRINT)(start_addr + size);
+	logTaintedMemoryArea(tdata, "- %s 0x%08x 0x%08x 0x%08x\n", hook_name.c_str(), hash_context, start_addr, end_addr);
+}
+
+
 void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName) {
 	// Check if the program is 64-bit
 	ASSERT(sizeof(ADDRINT) == sizeof(UINT32), "64-bit mode not supported yet");
@@ -140,7 +153,7 @@ condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size, BOOL is
 	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, addr) == NULL) {
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%s; 0x%08x 0x%08x %s\n", alertType.c_str(), addr, targetAddress, ins.c_str());
-		logInstruction(tdata, "%s; 0x%08x [%d] %s\n", alertType.c_str(), addr, (int)TTINFO(tainted), instruction.c_str());
+		logInstruction(tdata, "%s; 0x%08x 0x%08x %s\n", alertType.c_str(), addr, targetAddress, instruction.c_str());
 		// Reset the offending instruction
 		TTINFO(offendingInstruction) = 0;
 	}

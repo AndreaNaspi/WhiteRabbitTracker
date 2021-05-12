@@ -18,6 +18,7 @@ using std::cerr;
 extern REG thread_ctx_ptr;
 
 void instrumentForTaintCheck(INS ins);
+void logHookId(CONTEXT* ctx, std::string hook_name, ADDRINT start_addr, UINT32 size);
 void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName);
 void addTaintRegister(thread_ctx_t *thread_ctx, int gpr, tag_t tags[], bool reset);
 void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size);

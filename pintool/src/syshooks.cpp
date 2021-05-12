@@ -100,6 +100,7 @@ namespace SYSHOOKS {
 		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE);
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			// High false positive rate, taint only suspicious files
+			logHookId(ctx, "NtCreateFile", (ADDRINT)p->Buffer, p->Length);
 			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
 		}
 	}
@@ -134,6 +135,7 @@ namespace SYSHOOKS {
 			// Taint registry handler
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			// High false positive rate, taint only suspicious registry access
+			logHookId(ctx, "NtOpenKey", (ADDRINT)khandle, sizeof(W::HANDLE));
 			addTaintMemory(ctx, (ADDRINT)khandle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtOpenKey");
 		}
 	}
@@ -159,6 +161,7 @@ namespace SYSHOOKS {
 					logModule->logBypass("NtQueryInformationProcess ProcessDebugFlags");
 					*((W::ULONG*)ProcessInformation) = PROCESS_DEBUG_INHERIT;
 				}
+				logHookId(ctx, "NtQueryInformationProcess ProcessDebugFlags", (ADDRINT)ProcessInformation, ProcessInformationLength);
 				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugFlags");
 			}			
 			else if (ProcessInformationClass == ProcessDebugObjectHandle) {
@@ -169,6 +172,7 @@ namespace SYSHOOKS {
 					ADDRINT _eax = CODEFORSTATUSPORTNOTSET;
 					PIN_SetContextReg(ctx, REG_GAX, _eax);
 				}
+				logHookId(ctx, "NtQueryInformationProcess ProcessDebugObjectHandle", (ADDRINT)ProcessInformation, ProcessInformationLength);
 				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugObjectHandle");
 			}
 			else if (ProcessInformationClass == ProcessDebugPort) {
@@ -231,6 +235,7 @@ namespace SYSHOOKS {
 					}
 				}
 
+				logHookId(ctx, "NtQuerySystemInformation SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
 				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
 		}
@@ -261,13 +266,41 @@ namespace SYSHOOKS {
 	/* ===================================================================== */
 	VOID NtQueryAttributesFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
 		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg0;
+		W::FILE_BASIC_INFO* basicInfo = (W::FILE_BASIC_INFO*)sc->arg1;
 		W::PUNICODE_STRING p = Obj->ObjectName;
 
 		char value[PATH_BUFSIZE];
 		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE);
 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
-			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+			logHookId(ctx, "NtQueryAttributesFile", (ADDRINT)basicInfo, sizeof(W::FILE_BASIC_INFO));
+			//Tainting the wholw FILE_BASIC_INFO data structure
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->FileAttributes), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
 		}
 	}
 

@@ -380,6 +380,7 @@ VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 		logInfo->logBypass("CheckRemoteDebuggerPresent");
 	}
 	// Taint source: API return value
+	logHookId(ctx, "CheckRemoteDebuggerPresent", *apiOutputs->lpbDebuggerPresent, sizeof(W::BOOL));
 	addTaintMemory(ctx, *apiOutputs->lpbDebuggerPresent, sizeof(W::BOOL), TAINT_COLOR_1, true, "CheckRemoteDebuggerPresent");
 }
 
@@ -398,6 +399,7 @@ VOID EnumProcessesExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp) {
 	State::apiOutputs::enumProcessesInformations *pc = &apiOutputs->_enumProcessesInformations;
 	ADDRINT* bytesProcesses = (ADDRINT*)*pc->bytesLpidProcesses;
 	logInfo->logBypass("EnumProcesses");
+	logHookId(ctx, "EnumProcesses", *pc->lpidProcesses, *bytesProcesses);
 	addTaintMemory(ctx, *pc->lpidProcesses, *bytesProcesses, TAINT_COLOR_1, true, "EnumProcesses");
 }
 
@@ -423,6 +425,7 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("Process32FirstA/Process32NextA");
 	}
 	// taint source: API return value
+	logHookId(ctx, "Process32FirstA/Process32NextA", apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32));
 	addTaintMemory(ctx, apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
 }
 
@@ -448,6 +451,7 @@ VOID Process32FirstNextWExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("Process32FirstW/Process32NextW");
 	}
 	// taint source: API return value
+	logHookId(ctx, "Process32FirstW/Process32NextW", apiOutputs->lpProcessInformationsW, sizeof(W::PROCESSENTRY32W));
 	addTaintMemory(ctx, apiOutputs->lpProcessInformationsW, sizeof(W::PROCESSENTRY32W), TAINT_COLOR_1, true, "Process32FirstW/Process32NextW");
 }
 
@@ -481,9 +485,12 @@ VOID GetDiskFreeSpaceAExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("GetDiskFreeSpaceA");
 	}
 	// taint source: API return value
-	addTaintMemory(ctx, *pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(ctx, *pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(ctx, *pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	logHookId(ctx, "GetDiskFreeSpaceA freeBytesAvailableToCaller", *pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER));
+	addTaintMemory(ctx, *pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpaceA");
+	logHookId(ctx, "GetDiskFreeSpaceA totalNumberOfBytes", *pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER));
+	addTaintMemory(ctx, *pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpaceA");
+	logHookId(ctx, "GetDiskFreeSpaceA totalNumberOfFreeBytes", *pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER));
+	addTaintMemory(ctx, *pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpaceA");
 }
 
 VOID GetDiskFreeSpaceWEntry(ADDRINT retAddr, ADDRINT* pointerToLpFreeBytesAvailableToCaller, ADDRINT* pointerToLpTotalNumberOfBytes, ADDRINT* pointerToLpTotalNumberOfFreeBytes) {
@@ -516,9 +523,12 @@ VOID GetDiskFreeSpaceWExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("GetDiskFreeSpaceW");
 	}
 	// taint source: API return value
-	addTaintMemory(ctx, *pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(ctx, *pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
-	addTaintMemory(ctx, *pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpace");
+	logHookId(ctx, "GetDiskFreeSpaceW freeBytesAvailableToCaller", *pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER));
+	addTaintMemory(ctx, *pc->freeBytesAvailableToCaller, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpaceW");
+	logHookId(ctx, "GetDiskFreeSpaceW totalNumberOfBytes", *pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER));
+	addTaintMemory(ctx, *pc->totalNumberOfBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpaceW");
+	logHookId(ctx, "GetDiskFreeSpaceW totalNumberOfFreeBytes", *pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER));
+	addTaintMemory(ctx, *pc->totalNumberOfFreeBytes, sizeof(W::ULARGE_INTEGER), TAINT_COLOR_1, true, "GetDiskFreeSpaceW");
 }
 
 VOID GlobalMemoryStatusEntry(ADDRINT* pointerToLpBuffer) {
@@ -537,6 +547,7 @@ VOID GlobalMemoryStatusExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("GlobalMemoryStatus");
 	}
 	// Taint source: API return value
+	logHookId(ctx, "GlobalMemoryStatus", *apiOutputs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX));
 	addTaintMemory(ctx, *apiOutputs->lpMemoryInformations, sizeof(W::MEMORYSTATUSEX), TAINT_COLOR_1, true, "GlobalMemoryStatus");
 }
 
@@ -557,6 +568,7 @@ VOID GetSystemInfoExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("GetSystemInfo");
 	}
 	// Taint source: API return value
+	logHookId(ctx, "GetSystemInfo", *apiOutputs->lpSystemInformations, sizeof(W::SYSTEM_INFO));
 	addTaintMemory(ctx, *apiOutputs->lpSystemInformations, sizeof(W::SYSTEM_INFO), TAINT_COLOR_1, true, "GetSystemInfo");
 	addTaintMemory(ctx, (ADDRINT)dwActiveProcessorMask, sizeof(W::DWORD), TAINT_COLOR_1, true, "GetSystemInfo dwActiveProcessorMask");
 }
@@ -582,6 +594,7 @@ VOID GetCursorPosExit(CONTEXT* ctx, ADDRINT esp) {
 		logInfo->logBypass("GetCursorPos");
 	}
 	// Taint source: API return value
+	logHookId(ctx, "GetCursorPos", apiOutputs->lpCursorPointerInformations, sizeof(W::POINT));
 	addTaintMemory(ctx, apiOutputs->lpCursorPointerInformations, sizeof(W::POINT), TAINT_COLOR_1, true, "GetCursorPos");
 }
 
@@ -613,6 +626,7 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 			strcat(logName, value);
 			logModule->logBypass(logName);
 			// Taint source: API return value (very high load)
+			logHookId(ctx, "GetModuleFileName", (ADDRINT)pc->lpModuleName, pc->lpNSize);
 			addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		}
 	}
@@ -627,6 +641,7 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 			strcat(logName, value);
 			logModule->logBypass(logName);
 			// Taint source: API return value (very high load)
+			logHookId(ctx, "GetModuleFileName", (ADDRINT)pc->lpModuleName, pc->lpNSize);
 			addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		}
 	}
@@ -673,6 +688,7 @@ VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 		}
 	}
 	// Taint source: API return value
+	logHookId(ctx, "GetDeviceDriverBaseName", (ADDRINT)pc->lpDriverBaseName, pc->lpNSize);
 	addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
 	return;
 }
@@ -740,6 +756,7 @@ VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp) {
 	State::apiOutputs* apiOutputs = State::getApiOutputs();
 	State::apiOutputs::icmpSendEchoInformations *icmpInformations = &apiOutputs->_icmpSendEchoInformations;
 	taintRegisterEax(ctx);
+	logHookId(ctx, "IcmpSendEcho", *icmpInformations->replyBuffer, *icmpInformations->replySize);
 	addTaintMemory(ctx, *icmpInformations->replyBuffer, *icmpInformations->replySize, TAINT_COLOR_1, true, "IcmpSendEcho");
 }
 
@@ -821,6 +838,7 @@ VOID GetUsernameExit(CONTEXT* ctx, ADDRINT esp) {
 		}
 	}
 	// Taint source: API return value
+	logHookId(ctx, "GetUsername", (ADDRINT)pc->usernameBuffer, *pc->lpNSize);
 	addTaintMemory(ctx, (ADDRINT)pc->usernameBuffer, *pc->lpNSize, TAINT_COLOR_1, true, "GetUsername");
 	return;
 }

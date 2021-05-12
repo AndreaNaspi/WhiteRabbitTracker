@@ -17,14 +17,16 @@ ZydisFormatter formatter;
 std::string disassembleInstruction(ADDRINT address, ADDRINT instructionSize) {
     ZyanUSize offset = 0;
     ZydisDecodedInstruction instruction;
+    ZyanU64 runtime_address = address;
     std::string result;
     while (ZYAN_SUCCESS(ZydisDecoderDecodeBuffer(&decoder, (void*)(address + offset), instructionSize - offset, &instruction)))
     {
         // Format & print the binary instruction structure to human readable format
         char buffer[256];
-        ZydisFormatterFormatInstruction(&formatter, &instruction, buffer, sizeof(buffer), ZYDIS_RUNTIME_ADDRESS_NONE);
+        ZydisFormatterFormatInstruction(&formatter, &instruction, buffer, sizeof(buffer), runtime_address);
         result += buffer;
         offset += instruction.length;
+        runtime_address += instruction.length;
     }
     return result;
 }
