@@ -66,15 +66,17 @@ namespace SYSHOOKS {
 		W::OBJECT_ATTRIBUTES *Obj = (W::OBJECT_ATTRIBUTES*)sc->arg2;
 		W::ULONG mode = (W::ULONG)sc->arg7;
 		W::PUNICODE_STRING p = Obj->ObjectName;
+		State::apiOutputs* apiOutputs = State::getApiOutputs();
 
 		char value[PATH_BUFSIZE];
 		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE); 
+		apiOutputs->ntCreateFileBuffer = p->Buffer;
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			if (_knobBypass) {
 				//VBOXGUEST pass for Obsidium anti-dbi
 #if 0
-				char* vBoxGuestFIle[] = { "VBOXGUEST", NULL };
-				if (lookupSubstring(value, vBoxGuestFIle))
+				char* vBoxGuestFile[] = { "VBOXGUEST", NULL };
+				if (lookupSubstring(value, vBoxGuestFile))
 					return;
 #endif
 				for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
@@ -92,16 +94,18 @@ namespace SYSHOOKS {
 	/* Handle the NtCreateFile API (Virtualbox/VMware files access)          */
 	/* ===================================================================== */
 	VOID NtCreateFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		W::PHANDLE handle = (W::PHANDLE)sc->arg0;
 		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg2;
 		W::ULONG mode = (W::ULONG)sc->arg7;
 		W::PUNICODE_STRING p = Obj->ObjectName;
+		State::apiOutputs* apiOutputs = State::getApiOutputs();
 
 		char value[PATH_BUFSIZE];
-		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE);
+		GET_STR_TO_UPPER(apiOutputs->ntCreateFileBuffer, value, PATH_BUFSIZE);
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			// High false positive rate, taint only suspicious files
-			logHookId(ctx, "NtCreateFile", (ADDRINT)p->Buffer, p->Length);
-			addTaintMemory(ctx, (ADDRINT)p->Buffer, p->Length, TAINT_COLOR_1, true, "NtCreateFile");
+			logHookId(ctx, "NtCreateFile", (ADDRINT)handle, sizeof(W::HANDLE));
+			addTaintMemory(ctx, (ADDRINT)handle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtCreateFile");
 		}
 	}
 
@@ -247,9 +251,11 @@ namespace SYSHOOKS {
 	VOID NtQueryAttributesFile_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
 		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg0;
 		W::PUNICODE_STRING p = Obj->ObjectName;
+		State::apiOutputs* apiOutputs = State::getApiOutputs();
 
 		char value[PATH_BUFSIZE];
 		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE); 
+		apiOutputs->ntQueryAttributesFileBuffer = p->Buffer;
 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			char logName[256] = "NtQueryAttributesFile ";
@@ -268,9 +274,10 @@ namespace SYSHOOKS {
 		W::OBJECT_ATTRIBUTES* Obj = (W::OBJECT_ATTRIBUTES*)sc->arg0;
 		W::FILE_BASIC_INFO* basicInfo = (W::FILE_BASIC_INFO*)sc->arg1;
 		W::PUNICODE_STRING p = Obj->ObjectName;
+		State::apiOutputs* apiOutputs = State::getApiOutputs();
 
 		char value[PATH_BUFSIZE];
-		GET_STR_TO_UPPER(p->Buffer, value, PATH_BUFSIZE);
+		GET_STR_TO_UPPER(apiOutputs->ntQueryAttributesFileBuffer, value, PATH_BUFSIZE);
 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);

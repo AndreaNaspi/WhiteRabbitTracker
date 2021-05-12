@@ -83,6 +83,8 @@ namespace State {
 			W::LPDWORD lpNSize;
 		} _usernameInformations;
 		ADDRINT closeHandleStatus;
+		W::PWSTR ntCreateFileBuffer;
+		W::PWSTR ntQueryAttributesFileBuffer;
 	};
 
 	/* ===================================================================== */
