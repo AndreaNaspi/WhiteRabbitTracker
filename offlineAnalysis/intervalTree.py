@@ -1,3 +1,8 @@
+class HookIdProduct:
+    def __init__(self, hookChunks: list, hookLargeChunks: (int, int)):
+        self.hookChunks = hookChunks
+        self.hookLargeChunks = hookLargeChunks
+
 class TaintedChunk:
     def __init__(self, start: int, end: int, xorValue: str, colour: int, name: str):
         self.start = start

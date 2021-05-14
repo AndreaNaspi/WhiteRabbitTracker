@@ -69,6 +69,7 @@ void SpecialInstructionsHandler::regInit(REGSET* regsIn, REGSET* regsOut) {
 /* ===================================================================== */
 void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 	static int insCount = 0;
+	static ADDRINT cpuidCount = 0;
 	static ADDRINT rdtscCount = 0;
 	ExceptionHandler* eh = ExceptionHandler::getInstance();
 	SpecialInstructionsHandler* specialInstructionsHandlerInfo = SpecialInstructionsHandler::getInstance();
@@ -104,10 +105,11 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_INST_PTR,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
 			IARG_ADDRINT, curEip,
+			IARG_PTR, &cpuidCount,
 			IARG_END);
 	}
 	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
-	else if (INS_IsRDTSC(ins) || (disassembled_ins.find("rdtsc") != std::string::npos && ((xed_iclass_enum_t)INS_Opcode(ins)) == XED_ICLASS_RDTSC)) {
+	else if ((disassembled_ins.find("rdtsc") != std::string::npos && ((xed_iclass_enum_t)INS_Opcode(ins)) == XED_ICLASS_RDTSC)) {
 		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::AlterRdtscValues,
@@ -152,8 +154,9 @@ void SpecialInstructionsHandler::CpuidCalled(ADDRINT ip, CONTEXT* ctxt, ADDRINT 
 /* ===================================================================== */
 /* Utility function to alter EBX, ECX, EDX (cpuid results)               */
 /* ===================================================================== */
-void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip) {
+void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip, ADDRINT* cpuidCount) {
 	CHECK_EIP_ADDRESS(cur_eip);
+	(*cpuidCount)++;
 	// Get class to global objects
 	State::globalState* gs = State::getGlobalState();
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
@@ -178,7 +181,8 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 			_ebx = 0x0ULL;
 			_ecx = 0x0ULL;
 			_edx = 0x0ULL;
-			classHandler->logInfo->logBypass("CPUID");
+			if ((*cpuidCount) <= MAX_CPUID) // very high load
+				classHandler->logInfo->logBypass("CPUID");
 		}
 		// TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); // very high load
 		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
@@ -210,9 +214,9 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 		if((*rdtscCount) <= MAX_RDTSC) // very high load
 			classHandler->logInfo->logBypass("RDTSC"); 
 	}
-	// Taint the registers
-	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
-	TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+	// Taint the registers (very high high load)
+	//TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+	//TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
 }
 /* ===================================================================== */
 /* Function to handle the int 2d instruction                             */

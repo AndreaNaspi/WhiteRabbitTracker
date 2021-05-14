@@ -24,10 +24,11 @@ def getDictConsumers(directoryTaintedLogs):
 						memAddress = splittedLog[memAddressIndex].split("(")[0]
 						# first time we encounter that cons
 						if cons not in consumers.keys():
-							consumers[cons] = {int(memAddress, 16)}
+							consumers[cons] = [int(memAddress, 16)]
 						# cons already exist -> update the set
 						else:
-							consumers[cons].add(int(memAddress, 16))
+							if int(memAddress, 16) not in consumers[cons]:
+								consumers[cons].append(int(memAddress, 16))
 	return consumers
 
 
@@ -247,12 +248,19 @@ def main():
 	# create logging file
 	for handler in logging.root.handlers[:]:
 		logging.root.removeHandler(handler)
-	logging.basicConfig(filename="offlineAnalysis.log", level=logging.INFO)
+	try:
+		f = open("offlineAnalysis.gv", "w")
+	except IOError:
+		print("File offlineAnalysis.gv not present, creating the file...")
+	finally:
+		f.close()
+
+	logging.basicConfig(filename="offlineAnalysis.gv", format='%(message)s', level=logging.INFO)
 
 	'''
 	Create a dictionary where the:
 		- keys: list of all consumers
-		- value: set of addresses consumed by these consumers
+		- value: list of addresses consumed by these consumers
 	'''
 	consumers = getDictConsumers(directoryTaintedLogs)
 
@@ -288,6 +296,138 @@ def main():
 	'''
 	It's time to build the .dot file (graph)
 	'''
+	consumerChunks = {} # dict<address,list<pair<start,end>>>
+	chunks = [] # list<pair<start,end>>
+	rangeHookId = {} # dict<pair<start,end>, hookID>, hookID = pair<hookName,xor>
+	prodHooks = [] # list<hookID>, hookID = pair<hookName,xor>
+	producerChunks = {} # dict<hookID, hookID_product>, hookID = pair<hookName,xor>, hookID_product = pair<list<range>, range>
+	producerIds = [] # list<pair<insAddress: int, colour: int>>
+	producerIdsChunks = {} # dict<pair<insAddress: int, colour: int>, list<pair<start, end>>>
+	colourChunks = {} # dict<int, pair<start, end>>
+	# for each consumer
+	for consumer in consumers:
+		consumers[consumer].sort()
+		# for each consumed address by the consumer
+		for consumedAddress in consumers[consumer]:
+			# if address is in tainted chunks (log files)
+			res = searchTaintedChunk(taintProducerRoot, consumedAddress)
+			if res is not None:
+				currentRange = (res.start, res.end)
+				# insert chunk
+				if currentRange not in chunks:
+					chunks.append(currentRange)
+				# insert consumer
+				if consumer not in consumerChunks.keys():
+					consumerChunks[consumer] = [currentRange]
+				else:
+					if currentRange not in consumerChunks[consumer]:
+						consumerChunks[consumer].append(currentRange)
+				# insert producer
+				hookID = (res.name, res.xorValue)
+				rangeHookId[currentRange] = hookID
+				# add hookID to producer set (unique ID in dot file)
+				if hookID not in prodHooks:
+					prodHooks.append(hookID)
+				if hookID not in producerChunks.keys():
+					hookID_product = HookIdProduct([currentRange], None)
+					producerChunks[hookID] = hookID_product
+				else:
+					if currentRange not in producerChunks[hookID].hookChunks:
+						producerChunks[hookID].hookChunks.append(hookID_product)
+			# address is in chunks from fTechnique
+			else:
+				res = searchTaintedChunk(definitiveChunksRoot, consumedAddress)
+				if res is not None:
+					currentRange = (res.start, res.end)
+					# insert chunk
+					if currentRange not in chunks:
+						chunks.append(currentRange)
+					# insert consumer
+					if consumer not in consumerChunks.keys():
+						consumerChunks[consumer] = [currentRange]
+					else:
+						if currentRange not in consumerChunks[consumer]:
+							consumerChunks[consumer].append(currentRange)
+					# if the producer is in the heuristic output
+					if currentRange in rangeProd.keys():
+						if rangeProd[currentRange] not in producerIds:
+							producerIds.append(rangeProd[currentRange])
+						if currentRange not in chunks:
+							chunks.append(currentRange)
+						if rangeProd[currentRange] not in producerIdsChunks.keys():
+							producerIdsChunks[rangeProd[currentRange]] = [currentRange]
+						else:
+							if currentRange not in producerIdsChunks[rangeProd[currentRange]]:
+								producerIdsChunks[rangeProd[currentRange]].append(currentRange)
+					# if the producer is a special node
+					elif res.colour != 0:
+						if currentRange not in chunks:
+							chunks.append(currentRange)
+							if res.colour not in colourChunks.keys():
+								colourChunks[res.colour] = [currentRange]
+							else:
+								if currentRange not in colourChunks[res.colour]:
+									colourChunks[res.colour].append(currentRange)
+
+	# define large chunks with more than 10 intervals
+	THRESHOLD = 10
+	largeChunks = [] # list<pair<start,end>>
+	for hookId, hookId_products in producerChunks.items():
+		if len(hookId_products.hookChunks) >= THRESHOLD:
+			if hookId in prodLargeRange.keys():
+				hookId_products.hookLargeChunks = prodLargeRange[hookId]
+				if prodLargeRange[hookId] not in largeChunks:
+					largeChunks.append(prodLargeRange[hookId])
+
+	# WRITE DOT FILE
+	output = ""
+	output += "digraph {\n\tnode[shape=box]\n"
+	for k, v in consumerChunks.items():
+		output += "\"" + hex(id(k)) + "\" [label=\"" + hex(k) + "\"];\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	for k, v in producerChunks.items():
+		output += "\"" + hex(id(k)) + "\" [label=\"" + k[0] + " " + hex(k[1]) + "\"];\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	for k, v in producerIdsChunks.items():
+		output += "\"" + hex(id(k)) + "\" [label=\"" + hex(k[0]) + " " + hex(k[1]) + "\"];\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	for k, v in colourChunks.items():
+		output += "\"" + hex(id(k)) + "\" [label=\"" + hex(k) + "\"];\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	for chunk in chunks:
+		if chunk in rangeHookId.keys():
+			it_h = rangeHookId[chunk]
+			if it_h in prodLargeRange.keys():
+				prodLargeRangeMem = prodLargeRange[it_h]
+				if prodLargeRangeMem in largeChunks:
+					output += "\"" + hex(id(prodLargeRangeMem)) + "\" [label=\"[" + hex(prodLargeRangeMem[0]) + "-\\n" + hex(prodLargeRangeMem[1]) + "]\"];\n";
+				else:
+					output += "\"" + hex(id(chunk[0])) + "\" [label=\"[" + hex(chunk[0]) + "-\\n" + hex(chunk[1]) + "]\"];\n"
+			else:
+				output += "\"" + hex(id(chunk[0])) + "\" [label=\"[" + hex(chunk[0]) + "-\\n" + hex(chunk[1]) + "]\"];\n"
+		else:
+			output += "\"" + hex(id(chunk[0])) + "\" [label=\"[" + hex(chunk[0]) + "-\\n" + hex(chunk[1]) + "]\"];\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	# WRITE RELATIONSHIP TO DOT FILE
+
+	output += "}"
+	logging.info(output)
+	output = ""
 
 	return 0
 

@@ -16,6 +16,7 @@
 #include <iostream>
 #include <fstream>
 
+#define MAX_CPUID 10
 #define MAX_RDTSC 5
 
 class SpecialInstructionsHandler
@@ -52,7 +53,7 @@ public:
 	/* Utility function to alter EBX, ECX, EDX (cpuid results) in case of    */
 	/* cpuid instruction (avoid VM/Sandbox detection)                        */
 	/* ===================================================================== */
-	static void AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, ADDRINT cur_eip);
+	static void AlterCpuidValues(ADDRINT ip, CONTEXT* ctxt, ADDRINT cur_eip, ADDRINT* cpuidCount);
 
 	/* ===================================================================== */
 	/* Function to handle the rdtsc instruction                              */
