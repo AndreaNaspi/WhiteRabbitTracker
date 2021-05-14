@@ -303,7 +303,7 @@ def main():
 	producerChunks = {} # dict<hookID, hookID_product>, hookID = pair<hookName,xor>, hookID_product = pair<list<range>, range>
 	producerIds = [] # list<pair<insAddress: int, colour: int>>
 	producerIdsChunks = {} # dict<pair<insAddress: int, colour: int>, list<pair<start, end>>>
-	colourChunks = {} # dict<int, pair<start, end>>
+	colourChunks = {} # dict<int, list<pair<start, end>>>
 	# for each consumer
 	for consumer in consumers:
 		consumers[consumer].sort()
@@ -389,7 +389,7 @@ def main():
 	output = ""
 
 	for k, v in producerChunks.items():
-		output += "\"" + hex(id(k)) + "\" [label=\"" + k[0] + " " + hex(k[1]) + "\"];\n"
+		output += "\"" + hex(id(k)) + "\" [label=\"" + k[0] + "\n " + hex(k[1]) + "\"];\n"
 	if output:
 		logging.info(output)
 	output = ""
@@ -424,6 +424,72 @@ def main():
 	output = ""
 
 	# WRITE RELATIONSHIP TO DOT FILE
+	lrange_cons = {} # dict<range, list<int>>
+	for consumer in consumerChunks.keys():
+		rangeMap = consumerChunks[consumer]
+		for currentRange in rangeMap:
+			if currentRange in rangeHookId.keys():
+				hookID = rangeHookId[currentRange]
+				if hookID in prodLargeRange.keys():
+					largeRange = prodLargeRange[hookID]
+					if largeRange in largeChunks:
+						if largeRange not in lrange_cons.keys():
+							lrange_cons[largeRange] = [consumer]
+							output += "\"" + hex(id(largeRange)) + "\" -> \"" + hex(id(consumer)) + "\";\n"
+						else:
+							if consumer not in lrange_cons[largeRange]:
+								lrange_cons[largeRange].append(consumer)
+							output += "\"" + hex(id(largeRange)) + "\" -> \"" + hex(id(consumer)) + "\";\n"
+					elif currentRange in chunks:
+						output += "\"" + hex(id(currentRange[0])) + "\" -> \"" + hex(id(consumer)) + "\";\n"
+				elif currentRange in chunks:
+					output += "\"" + hex(id(currentRange[0])) + "\" -> \"" + hex(id(consumer)) + "\";\n"
+			elif currentRange in chunks:
+				output += "\"" + hex(id(currentRange[0])) + "\" -> \"" + hex(id(consumer)) + "\";\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	lrange_prod = [] # list<range>
+	# dict<hookID, hookID_product>, hookID = pair<hookName,xor>, hookID_product = pair<list<range>, range>
+	for producer in producerChunks.keys():
+		currentHookChunks = producerChunks[producer].hookChunks
+		for currentRange in currentHookChunks:
+			if currentRange in rangeHookId.keys():
+				hookID = rangeHookId[currentRange]
+				if hookID in prodLargeRange.keys():
+					largeRange = prodLargeRange[hookID]
+					if largeRange in largeChunks:
+						if largeRange not in lrange_prod:
+							lrange_prod.append(largeRange)
+							output += "\"" + hex(id(producer)) + "\" -> \"" + hex(id(largeRange[0])) + "\";\n"
+					elif currentRange in chunks:
+						output += "\"" + hex(id(producer)) + "\" -> \"" + hex(id(currentRange[0])) + "\";\n"
+				elif currentRange in chunks:
+					output += "\"" + hex(id(producer)) + "\" -> \"" + hex(id(currentRange[0])) + "\";\n"
+			elif currentRange in chunks:
+				output += "\"" + hex(id(producer)) + "\" -> \"" + hex(id(currentRange[0])) + "\";\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	for prodId in producerIdsChunks.keys():
+		ranges = producerIdsChunks[prodId]
+		for currentRange in ranges:
+			if currentRange in chunks:
+				output += "\"" + hex(id(prodId)) + "\" -> \"" + hex(id(currentRange[0])) + "\";\n"
+	if output:
+		logging.info(output)
+	output = ""
+
+	for colour in colourChunks.keys():
+		ranges = colourChunks[colour]
+		for currentRange in ranges:
+			if currentRange in chunks:
+				output += "\"" + hex(id(colour)) + "\" -> \"" + hex(id(currentRange[0])) + "\";\n"
+	if output:
+		logging.info(output)
+	output = ""
 
 	output += "}"
 	logging.info(output)
