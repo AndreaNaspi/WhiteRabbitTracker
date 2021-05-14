@@ -170,9 +170,11 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 		if (_knobBypass) {
 			UINT32 mask = 0xFFFFFFFFULL;
 			_ecx &= (mask >> 1);
-			classHandler->logInfo->logBypass("CPUID");
+			if ((*cpuidCount) <= MAX_CPUID) // very high load
+				classHandler->logInfo->logBypass("CPUID 0x1");
 		}
 		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
+		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
 	}
 	// EAX >= 0x40000000 && EAX <= 0x400000FF -> reserved cpuid levels for Intel and AMD to provide an interface to pass information from the hypervisor to the guest (VM)
 	else if (gs->cpuid_eax >= 0x40000000 && gs->cpuid_eax <= 0x400000FF) {
@@ -182,11 +184,30 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 			_ecx = 0x0ULL;
 			_edx = 0x0ULL;
 			if ((*cpuidCount) <= MAX_CPUID) // very high load
-				classHandler->logInfo->logBypass("CPUID");
+				classHandler->logInfo->logBypass("CPUID 0x4");
 		}
 		// TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); // very high load
 		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
 		// TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1); // very high load
+		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+	}
+	else if (gs->cpuid_eax == 0x80000000) {
+		if ((*cpuidCount) <= MAX_CPUID) // very high load
+			classHandler->logInfo->logBypass("CPUID 0x80");
+		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+	}
+	else if (gs->cpuid_eax == 0x80000001) {
+		if ((*cpuidCount) <= MAX_CPUID) // very high load
+			classHandler->logInfo->logBypass("CPUID 0x81");
+		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+	}
+	else if (gs->cpuid_eax >= 0x80000002 && gs->cpuid_eax <= 0x80000004) {
+		if ((*cpuidCount) <= MAX_CPUID) // very high load
+			classHandler->logInfo->logBypass("CPUID 0x82+");
+		// TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); // very high load
+		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
+		// TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1); // very high load
+		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
 	}
 	// Change cpuid results (EBX, ECX, EDX)
 	PIN_SetContextReg(ctxt, REG_GBX, _ebx);

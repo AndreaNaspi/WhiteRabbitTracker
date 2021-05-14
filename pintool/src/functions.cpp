@@ -296,11 +296,19 @@ namespace Functions {
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_INST_PTR,
 							IARG_END);
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)LoadLibraryExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
 						break;
 					case(LOADLIBW_INDEX):
 						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)LoadLibraryWHook,
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_INST_PTR,
+							IARG_END);
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)LoadLibraryExit,
+							IARG_CONTEXT,
+							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
 					case(GETUSERNAME_INDEX):
@@ -796,6 +804,13 @@ VOID LoadLibraryWHook(const wchar_t** lib) {
 		}
 	}
 	return;
+}
+
+VOID LoadLibraryExit(CONTEXT* ctx, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	// Taint source: API return value (high load)
+	// TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+
 }
 
 VOID GetUsernameEntry(W::LPTSTR* lpBuffer, W::LPDWORD* nSize) {

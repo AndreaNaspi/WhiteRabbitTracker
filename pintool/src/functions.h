@@ -72,6 +72,7 @@ VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time)
 VOID IcmpSendEchoExit(CONTEXT* ctx, ADDRINT esp);
 VOID LoadLibraryAHook(const char** lib);
 VOID LoadLibraryWHook(const wchar_t** lib);
+VOID LoadLibraryExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetUsernameEntry(W::LPTSTR* lpBuffer, W::LPDWORD* nSize);
 VOID GetUsernameExit(CONTEXT* ctx, ADDRINT esp);
 VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2);

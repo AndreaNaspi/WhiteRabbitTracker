@@ -31,7 +31,7 @@ TLS_KEY tls_key = INVALID_TLS_KEY;
 
 // Define knobs
 KNOB<BOOL> knobApiTracing(KNOB_MODE_WRITEONCE, "pintool", "trace", "false", "Enable API tracing at instruction level (high load)");
-KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "false", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection");
+KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "true", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection");
 
 /* ============================================================================= */
 /* Define macro to check the instruction address and check if is program code    */
