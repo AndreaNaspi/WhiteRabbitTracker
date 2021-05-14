@@ -165,7 +165,7 @@ namespace SYSHOOKS {
 					logModule->logBypass("NtQueryInformationProcess ProcessDebugFlags");
 					*((W::ULONG*)ProcessInformation) = PROCESS_DEBUG_INHERIT;
 				}
-				logHookId(ctx, "NtQueryInformationProcess ProcessDebugFlags", (ADDRINT)ProcessInformation, ProcessInformationLength);
+				logHookId(ctx, "NtQueryInformationProcess-ProcessDebugFlags", (ADDRINT)ProcessInformation, ProcessInformationLength);
 				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugFlags");
 			}			
 			else if (ProcessInformationClass == ProcessDebugObjectHandle) {
@@ -176,13 +176,13 @@ namespace SYSHOOKS {
 					ADDRINT _eax = CODEFORSTATUSPORTNOTSET;
 					PIN_SetContextReg(ctx, REG_GAX, _eax);
 				}
-				logHookId(ctx, "NtQueryInformationProcess ProcessDebugObjectHandle", (ADDRINT)ProcessInformation, ProcessInformationLength);
+				logHookId(ctx, "NtQueryInformationProcess-ProcessDebugObjectHandle", (ADDRINT)ProcessInformation, ProcessInformationLength);
 				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugObjectHandle");
 			}
 			else if (ProcessInformationClass == ProcessDebugPort) {
 				// Set debug port to null
 				if (_knobBypass) {
-					logModule->logBypass("NtQueryInformationProcess ProcessDebugPort");
+					logModule->logBypass("NtQueryInformationProcess-ProcessDebugPort");
 					*((W::HANDLE *)ProcessInformation) = (W::HANDLE)0;
 				}
 			}
@@ -239,7 +239,7 @@ namespace SYSHOOKS {
 					}
 				}
 
-				logHookId(ctx, "NtQuerySystemInformation SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
+				logHookId(ctx, "NtQuerySystemInformation-SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
 				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
 			}
 		}

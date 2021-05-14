@@ -57,7 +57,6 @@ def populateTaintedChunks(directoryTaintedLogs):
 						else:
 							if memoryRange not in prodMap[hook_id]:
 								prodMap[hook_id].append(memoryRange)
-
 	for prod in prodMap:
 		memoryRanges = prodMap[prod]
 		memoryRanges.sort()
@@ -113,11 +112,12 @@ def fTechnique(directoryTaintedLogs):
 						assertType = int(splittedLog[6])
 						# for "mem", "mem-imm" and "mem-reg" the memory operand is the first
 						if instructionType == "mem" or instructionType == "mem-imm" or instructionType == "mem-reg":
-							memAddress = int(splittedLog[4].split("(")[0], 16)
-							memSize = int(splittedLog[4].split("(")[1].replace(")", ""))
-							update_hashmaps(insCounterDict, byteInsDict, ipAddress, memAddress, memSize)
+							if assertType != 2:
+								memAddress = int(splittedLog[4].split("(")[0], 16)
+								memSize = int(splittedLog[4].split("(")[1].replace(")", ""))
+								update_hashmaps(insCounterDict, byteInsDict, ipAddress, memAddress, memSize)
 						# for "reg-mem" the memory operand is the second
-						else:
+						elif assertType != 1:
 							memAddress = int(splittedLog[5].split("(")[0], 16)
 							memSize = int(splittedLog[5].split("(")[1].replace(")", ""))
 							update_hashmaps(insCounterDict, byteInsDict, ipAddress, memAddress, memSize)
@@ -196,15 +196,17 @@ def findProdHeuristics(directoryTaintedLogs, definitiveChunksRoot):
 					# consider only the instruction that involves memory areas
 					if instructionType in memoryLogs:
 						taintColor = int(splittedLog[2].replace("[", "").replace("]", ""))
+						assertType = int(splittedLog[6])
 						# for "mem", "mem-imm" and "mem-reg" the memory operand is the first
 						if instructionType == "mem" or instructionType == "mem-imm" or instructionType == "mem-reg":
-							memAddress = int(splittedLog[4].split("(")[0], 16)
-							if memAddress not in addrCol.keys():
-								addrCol.update({memAddress: taintColor})
-							else:
-								addrCol[memAddress] = taintColor
+							if assertType != 2:
+								memAddress = int(splittedLog[4].split("(")[0], 16)
+								if memAddress not in addrCol.keys():
+									addrCol.update({memAddress: taintColor})
+								else:
+									addrCol[memAddress] = taintColor
 						# for "reg-mem" the memory operand is the second
-						else:
+						elif assertType != 1:
 							memAddress = int(splittedLog[5].split("(")[0], 16)
 							if memAddress not in addrCol.keys():
 								addrCol.update({memAddress: taintColor})
@@ -372,6 +374,7 @@ def main():
 	# define large chunks with more than 10 intervals
 	THRESHOLD = 10
 	largeChunks = [] # list<pair<start,end>>
+	print(producerChunks)
 	for hookId, hookId_products in producerChunks.items():
 		if len(hookId_products.hookChunks) >= THRESHOLD:
 			if hookId in prodLargeRange.keys():
@@ -387,7 +390,6 @@ def main():
 	if output:
 		logging.info(output)
 	output = ""
-
 	for k, v in producerChunks.items():
 		output += "\"" + hex(id(k)) + "\" [label=\"" + k[0] + "\n " + hex(k[1]) + "\"];\n"
 	if output:
@@ -395,7 +397,7 @@ def main():
 	output = ""
 
 	for k, v in producerIdsChunks.items():
-		output += "\"" + hex(id(k)) + "\" [label=\"" + hex(k[0]) + " " + hex(k[1]) + "\"];\n"
+		output += "\"" + hex(id(k)) + "\" [label=\"" + hex(k[0]) + "\n " + hex(k[1]) + "\"];\n"
 	if output:
 		logging.info(output)
 	output = ""
