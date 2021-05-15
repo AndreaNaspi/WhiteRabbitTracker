@@ -80,6 +80,10 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("K32GetDeviceDriverBaseName", DEVICEBASE_INDEX));
 		fMap.insert(std::pair<std::string, int>("K32GetDeviceDriverBaseNameA", DEVICEBASE_INDEX));
 		fMap.insert(std::pair<std::string, int>("K32GetDeviceDriverBaseNameW", DEVICEBASE_INDEX));
+		fMap.insert(std::pair<std::string, int>("GetAdaptersInfo", GETADAPTER_INDEX));
+		fMap.insert(std::pair<std::string, int>("EnumDisplaySettings", ENUMDIS_INDEX));
+		fMap.insert(std::pair<std::string, int>("EnumDisplaySettingsA", ENUMDIS_INDEX));
+		fMap.insert(std::pair<std::string, int>("EnumDisplaySettingsW", ENUMDIS_INDEX));
 		// Time API hooks
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
@@ -257,6 +261,24 @@ namespace Functions {
 							IARG_CONTEXT,
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
+						break;
+					case(GETADAPTER_INDEX):
+						// Add hooking with IPOINT_BEFORE to retrieve the API input (retrieve adapter informations)
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)GetAdaptersInfoEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_END);
+						// Add hooking with IPOINT_AFTER to taint the memory on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetAdaptersInfoExit,
+							IARG_CONTEXT,
+							IARG_FUNCRET_EXITPOINT_VALUE,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case(ENUMDIS_INDEX):
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)EnumDisplaySettingsEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+							IARG_CONTEXT, IARG_END);
 						break;
 					case(GETTICKCOUNT_INDEX):
 						// Add hooking with IPOINT_AFTER to taint the EAX register on output
@@ -711,6 +733,55 @@ VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 	logHookId(ctx, "GetDeviceDriverBaseName", (ADDRINT)pc->lpDriverBaseName, pc->lpNSize);
 	addTaintMemory(ctx, (ADDRINT)pc->lpDriverBaseName, pc->lpNSize, TAINT_COLOR_1, true, "GetDeviceDriverBaseName");
 	return;
+}
+
+VOID GetAdaptersInfoEntry(PIP_ADAPTER_INFO* adapInfo, W::PULONG* size) {
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::adapterInformations* pc = &apiOutputs->_adapterInformations;
+	pc->macStruct = *adapInfo;
+	pc->macSizeStruct = *size;
+	pc->macSizeStructInitial = **size;
+}
+
+VOID GetAdaptersInfoExit(CONTEXT* ctx, ADDRINT ret, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::adapterInformations* pc = &apiOutputs->_adapterInformations;
+	PIP_ADAPTER_INFO adapInfo = pc->macStruct;
+	W::PULONG size = pc->macSizeStruct;
+	W::ULONG preSize = pc->macSizeStructInitial;
+
+	if (ret != 0 || preSize == 0 || preSize < *size || adapInfo->AddressLength == 0)
+		return;
+
+	logHookId(ctx, "GetAdaptersInfo", (ADDRINT)adapInfo, preSize);
+	while (adapInfo != nullptr) {
+		if (adapInfo->AddressLength > MAX_POSSIBLE_SIZE_MAC) 
+			return; 
+		if (_knobBypass) {
+			if (adapInfo->AddressLength == 6 && (!memcmp("\x08\x00\x27", adapInfo->Address, 3) ||
+				!memcmp("\x00\x05\x69", adapInfo->Address, 3) || !memcmp("\x00\x0c\x29", adapInfo->Address, 3) ||
+				!memcmp("\x00\x1c\x14", adapInfo->Address, 3) || !memcmp("\x00\x50\x56", adapInfo->Address, 3))) {
+				memcpy(adapInfo->Address, "\x07\x01\x33", 3);
+				break;
+			}
+		}
+
+		addTaintMemory(ctx, (ADDRINT)(adapInfo->AdapterName), MAX_ADAPTER_NAME_LENGTH + 4, 4, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT)(adapInfo->Description), MAX_ADAPTER_DESCRIPTION_LENGTH + 4, 4, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT) & (adapInfo->AddressLength), sizeof(UINT), 4, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT)(adapInfo->Address), MAX_ADAPTER_ADDRESS_LENGTH, 4, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT) & (adapInfo->Index), sizeof(W::DWORD), 4, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT) & (adapInfo->Type), sizeof(W::UINT), 4, true, "GetAdaptersInfo");
+
+		adapInfo = adapInfo->Next;
+	}
+}
+
+VOID EnumDisplaySettingsEntry(W::LPCTSTR* devName, CONTEXT* ctx) {
+	memset((void*)*devName, CHAR_EDS, W::lstrlen(*devName));
+	logHookId(ctx, "EnumDisplaySettings", (ADDRINT)devName, W::lstrlen(*devName));
+	addTaintMemory(ctx, (ADDRINT)devName, W::lstrlen(*devName), 64, true, "EnumDisplaySettings");
 }
 
 VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {

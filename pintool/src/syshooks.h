@@ -22,6 +22,12 @@
 #define WSTR_FILE			        L"a"
 #define PATH_BUFSIZE	            512
 
+typedef struct _SYSTEM_KERNEL_DEBUGGER_INFORMATION { 
+	W::BOOLEAN KernelDebuggerEnabled;
+	W::BOOLEAN KernelDebuggerNotPresent;
+} SYSTEM_KERNEL_DEBUGGER_INFORMATION, * PSYSTEM_KERNEL_DEBUGGER_INFORMATION;
+
+
 namespace SYSHOOKS {
 	VOID NtDelayexecution_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 	VOID NtCreateFile_entry(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);

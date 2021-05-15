@@ -52,14 +52,19 @@ namespace State {
 		ADDRINT  lpCursorPointerInformations;
 		ADDRINT* lpMemoryInformations;
 		ADDRINT* lpSystemInformations;
-		struct driverBaseNameInformations {
-			W::LPSTR lpDriverBaseName;
-			W::DWORD lpNSize;
-		} _driverBaseNameInformations;
 		struct moduleFileNameInformations {
 			W::LPSTR lpModuleName;
 			W::DWORD lpNSize;
 		} _moduleFileNameInformations;
+		struct driverBaseNameInformations {
+			W::LPSTR lpDriverBaseName;
+			W::DWORD lpNSize;
+		} _driverBaseNameInformations;
+		struct adapterInformations {
+			PIP_ADAPTER_INFO macStruct;
+			W::PULONG macSizeStruct;
+			W::ULONG macSizeStructInitial;
+		} _adapterInformations;
 		struct enumProcessesInformations {
 			ADDRINT* lpidProcesses;
 			ADDRINT* bytesLpidProcesses;

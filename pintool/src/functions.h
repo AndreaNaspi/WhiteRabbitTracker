@@ -66,6 +66,9 @@ VOID GetModuleFileNameHookEntry(W::LPTSTR* moduleName, W::DWORD* nSize);
 VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetDeviceDriverBaseNameHookEntry(W::LPTSTR* lpBaseName, W::DWORD* nSize);
 VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp);
+VOID GetAdaptersInfoEntry(PIP_ADAPTER_INFO* adapInfo, W::PULONG* size);
+VOID GetAdaptersInfoExit(CONTEXT* ctx, ADDRINT ret, ADDRINT esp);
+VOID EnumDisplaySettingsEntry(W::LPCTSTR* devName, CONTEXT* ctx);
 VOID SetTimerEntry(W::UINT* time);
 VOID WaitForSingleObjectEntry(W::DWORD *time);
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
@@ -92,6 +95,7 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 #define MAX_HOOK_FUNCTIONS_INDEX	128
 #define MAX_MAC_ADDRESS_SIZE		50
 #define MAX_GETPROCADDR_ORDINAL		0x200
+#define MAX_POSSIBLE_SIZE_MAC       50
 #define PATH_BUFSIZE                512
 #define BP_NUMCORES		            4
 #define BP_MINDISKGB                1073741824000 // 1000 GB
@@ -111,6 +115,7 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 #define STR_GUI_1B	                "a"
 #define STR_GUI_2	                "WantSuppli"
 #define STR_GUI_2B	                "s"
+#define CHAR_EDS	                'd'
 
 
 /* ===================================================================== */
@@ -131,6 +136,8 @@ enum {
 	GETCURSORPOS_INDEX = 32, 
 	GETMODULE_INDEX,
 	DEVICEBASE_INDEX,
+	GETADAPTER_INDEX,
+	ENUMDIS_INDEX,
 	GETTICKCOUNT_INDEX,
 	SETTIMER_INDEX,
 	WAITOBJ_INDEX,

@@ -4,7 +4,6 @@ from os.path import isdir, isfile, join
 import sys
 import logging
 
-
 def getDictConsumers(directoryTaintedLogs):
 	logFiles = [f for f in listdir(directoryTaintedLogs) if isfile(join(directoryTaintedLogs, f))]
 	consumers = {}
@@ -199,14 +198,13 @@ def findProdHeuristics(directoryTaintedLogs, definitiveChunksRoot):
 						assertType = int(splittedLog[6])
 						# for "mem", "mem-imm" and "mem-reg" the memory operand is the first
 						if instructionType == "mem" or instructionType == "mem-imm" or instructionType == "mem-reg":
-							if assertType != 2:
-								memAddress = int(splittedLog[4].split("(")[0], 16)
-								if memAddress not in addrCol.keys():
-									addrCol.update({memAddress: taintColor})
-								else:
-									addrCol[memAddress] = taintColor
+							memAddress = int(splittedLog[4].split("(")[0], 16)
+							if memAddress not in addrCol.keys():
+								addrCol.update({memAddress: taintColor})
+							else:
+								addrCol[memAddress] = taintColor
 						# for "reg-mem" the memory operand is the second
-						elif assertType != 1:
+						else:
 							memAddress = int(splittedLog[5].split("(")[0], 16)
 							if memAddress not in addrCol.keys():
 								addrCol.update({memAddress: taintColor})

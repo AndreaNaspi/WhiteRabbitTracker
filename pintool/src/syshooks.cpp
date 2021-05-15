@@ -239,9 +239,17 @@ namespace SYSHOOKS {
 					}
 				}
 
-				logHookId(ctx, "NtQuerySystemInformation-SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
-				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQuerySystemInformation SystemFirmwareTableInformation");
+				logHookId(ctx, "NtQSI-SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
+				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQSI-SystemFirmwareTableInformation");
 			}
+		}
+		else if (sc->arg0 == SystemKernelDebuggerInformation) {
+			PSYSTEM_KERNEL_DEBUGGER_INFORMATION skdi = (PSYSTEM_KERNEL_DEBUGGER_INFORMATION)sc->arg1;
+			W::ULONG s = (W::ULONG)sc->arg2;
+			logHookId(ctx, "NtQSI-SystemKernelDebuggerInformation", (ADDRINT)skdi, s);
+			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerEnabled), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
+			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerNotPresent), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
 		}
 	}
 
