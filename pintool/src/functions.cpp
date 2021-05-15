@@ -456,7 +456,7 @@ VOID Process32FirstNextExit(CONTEXT* ctx, ADDRINT esp) {
 	}
 	// taint source: API return value
 	logHookId(ctx, "Process32FirstA/Process32NextA", apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32));
-	addTaintMemory(ctx, apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32First/Process32Next");
+	addTaintMemory(ctx, apiOutputs->lpProcessInformations, sizeof(W::PROCESSENTRY32), TAINT_COLOR_1, true, "Process32FirstA/Process32NextA");
 }
 
 VOID Process32FirstNextWEntry(ADDRINT hSnapshot, ADDRINT pointerToProcessInformations) {
@@ -667,9 +667,6 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 			memcpy(pc->lpModuleName, BP_FAKEDRV, sizeof(BP_FAKEDRV));
 			strcat(logName, value);
 			logModule->logBypass(logName);
-			// Taint source: API return value (very high load)
-			logHookId(ctx, "GetModuleFileName", (ADDRINT)pc->lpModuleName, pc->lpNSize);
-			addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		}
 	}
 
@@ -682,11 +679,12 @@ VOID GetModuleFileNameHookExit(CONTEXT* ctx, ADDRINT esp) {
 			memcpy(pc->lpModuleName, BP_FAKEDRV_W, sizeof(BP_FAKEDRV_W));
 			strcat(logName, value);
 			logModule->logBypass(logName);
-			// Taint source: API return value (very high load)
-			logHookId(ctx, "GetModuleFileName", (ADDRINT)pc->lpModuleName, pc->lpNSize);
-			addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 		}
 	}
+
+	// Taint source: API return value (very high load)
+	// logHookId(ctx, "GetModuleFileName", (ADDRINT)pc->lpModuleName, pc->lpNSize);
+	// addTaintMemory(ctx, (ADDRINT)pc->lpModuleName, pc->lpNSize, TAINT_COLOR_1, true, "GetModuleFileName");
 	return;
 }
 

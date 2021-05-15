@@ -64,7 +64,7 @@ void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool res
 	pintool_tls *tdata = static_cast<pintool_tls*>(PIN_GetThreadData(tls_key, TTINFO(tid)));
 	logTaintedMemoryArea(tdata, "0x%08x 0x%08x [%d]\n", addr, endMemoryArea, tag);
 	// Taint the memory addresses
-	std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
+	// std::cerr << "Tainting addresses " << addr << " to " << addr + size << " ("+apiName+")" << std::endl;
 	for (UINT32 i = 0; i < size; ++i) {
 		tag_t t = tag;
 		if (!reset) t |= tagmap_getb(addr + i);

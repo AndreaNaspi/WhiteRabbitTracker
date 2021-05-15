@@ -196,7 +196,107 @@ namespace SYSHOOKS {
 	/* Handle the NtQuerySystemInformation API (firmware table access)       */
 	/* ===================================================================== */
 	VOID NtQuerySystemInformation_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std) {
-		if (sc->arg0 == SystemFirmwareTableInformation) {
+		if (sc->arg0 == SystemProcessInformation) {
+			//cast to our structure in order to retrieve the information returned from the NtSystemQueryInformation function
+			PSYSTEM_PROCESS_INFO spi;
+			spi = (PSYSTEM_PROCESS_INFO)sc->arg1;
+			W::ULONG s = (W::ULONG)sc->arg2;
+			//avoid null pointer exception
+			if (spi == NULL)
+				return;
+
+			while (spi->NextEntryOffset) {
+
+				if (spi->ImageName.Buffer != nullptr) {
+					char value[PATH_BUFSIZE];
+					GET_STR_TO_UPPER(spi->ImageName.Buffer, value, PATH_BUFSIZE);
+					if (_knobBypass) {
+						logModule->logBypass("NtQSI-SystemProcessInformation");
+						if (HiddenElements::shouldHideProcessStr(value)) {
+							PIN_SafeCopy(spi->ImageName.Buffer, BP_FAKEPROCESSW, sizeof(BP_FAKEPROCESSW));
+						}
+					}
+
+					logHookId(ctx, "NTQSI-SystemProcessInformation", (ADDRINT)spi, s);
+
+					TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+
+					addTaintMemory(ctx, (ADDRINT) & (spi->NextEntryOffset), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->NumberOfThreads), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+
+					addTaintMemory(ctx, (ADDRINT)(spi->ImageName.Buffer), spi->ImageName.Length, TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->BasePriority), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->ProcessId), sizeof(W::HANDLE), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->InheritedFromProcessId), sizeof(W::HANDLE), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+				}
+				spi = (PSYSTEM_PROCESS_INFO)((W::LPBYTE)spi + spi->NextEntryOffset); // Calculate the address of the next entry
+			}
+		}
+		else if (sc->arg0 == SystemModuleInformation) {
+
+			PRTL_PROCESS_MODULES pmi = (PRTL_PROCESS_MODULES)sc->arg1;
+
+			if (pmi == NULL)
+				return;
+
+			if ((W::ULONG*)sc->arg3 == nullptr) 
+				return;
+
+			ADDRINT sizeOut = *(W::ULONG*)sc->arg3;
+			ADDRINT sizeIn = (W::ULONG)sc->arg2;
+			W::ULONG s = (W::ULONG)sc->arg2;
+			if (sizeOut > sizeIn) 
+				return;
+
+			unsigned long size = pmi->NumberOfModules;
+
+			logHookId(ctx, "NTQSI-SystemModuleInformation", (ADDRINT)pmi, s);
+
+			for (size_t i = 0; i < size; i++) {
+				if (strstr((char*)pmi->Modules[i].FullPathName, "VBox") != NULL) {
+
+					TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+
+					char* tmpAddr = (char*)pmi->Modules[i].FullPathName;
+					size_t len = strlen(tmpAddr) + 1;
+
+					addTaintMemory(ctx, (ADDRINT) & (pmi->NumberOfModules), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Section), sizeof(W::HANDLE), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].MappedBase), 4U, 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].ImageBase), 4U, 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].ImageSize), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Flags), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadOrderIndex), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].InitOrderIndex), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadCount), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].OffsetToFileName), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].FullPathName), len, 8, true, "NTQSI-SystemModuleInformation");
+					for (size_t i = 0; i < len - 1; i++) {
+						if(_knobBypass)
+							PIN_SafeCopy(tmpAddr + i, "a", sizeof(char));
+					}
+				}
+			}
+		}
+		else if (sc->arg0 == SystemFirmwareTableInformation) {
 			PSYSTEM_FIRMWARE_TABLE_INFORMATION sfti = (PSYSTEM_FIRMWARE_TABLE_INFORMATION)sc->arg1;
 			if (sfti->Action == SystemFirmwareTable_Get) {
 				ADDRINT sizeOut = *(W::ULONG*)sc->arg3;
@@ -216,7 +316,7 @@ namespace SYSHOOKS {
 
 				PSYSTEM_FIRMWARE_TABLE_INFORMATION info = (PSYSTEM_FIRMWARE_TABLE_INFORMATION)sc->arg1;
 				// Scan entire bios in order to find vbox string
-				logModule->logBypass("NtQuerySystemInformation VBox");
+				logModule->logBypass("NtQSI-SystemFirmwareTableInformation VBox");
 				for (size_t i = 0; i < info->TableBufferLength - sizeVbox; i++) {
 					if (memcmp(info->TableBuffer + i, vbox, sizeVbox) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape, sizeof(escape));
@@ -232,7 +332,7 @@ namespace SYSHOOKS {
 				char escape3[] = { "aaaaaa" };
 				W::ULONG vmwareSize = (W::ULONG)Helper::_strlen_a(vmware);
 
-				logModule->logBypass("NtQuerySystemInformation VMware");
+				logModule->logBypass("NtQSI-SystemFirmwareTableInformation VMWare");
 				for (size_t i = 0; i < info->TableBufferLength - vmwareSize; i++) {
 					if (memcmp(info->TableBuffer + i, vmware, vmwareSize) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape3, sizeof(escape3));
@@ -246,6 +346,7 @@ namespace SYSHOOKS {
 		else if (sc->arg0 == SystemKernelDebuggerInformation) {
 			PSYSTEM_KERNEL_DEBUGGER_INFORMATION skdi = (PSYSTEM_KERNEL_DEBUGGER_INFORMATION)sc->arg1;
 			W::ULONG s = (W::ULONG)sc->arg2;
+			logModule->logBypass("NtQSI-SystemKernelDebuggerInformation");
 			logHookId(ctx, "NtQSI-SystemKernelDebuggerInformation", (ADDRINT)skdi, s);
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerEnabled), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
