@@ -165,7 +165,7 @@ namespace SYSHOOKS {
 			if (ProcessInformationClass == ProcessDebugFlags) {
 				// Gives Pin away as a debugger
 				if (_knobBypass) {
-					logModule->logBypass("NtQueryInformationProcess ProcessDebugFlags");
+					logModule->logBypass("NtQueryInformationProcess-ProcessDebugFlags");
 					*((W::ULONG*)ProcessInformation) = PROCESS_DEBUG_INHERIT;
 				}
 				logHookId(ctx, "NtQueryInformationProcess-ProcessDebugFlags", (ADDRINT)ProcessInformation, ProcessInformationLength);
@@ -174,7 +174,7 @@ namespace SYSHOOKS {
 			else if (ProcessInformationClass == ProcessDebugObjectHandle) {
 				// Set return value to STATUS_PORT_NOT_SET
 				if (_knobBypass) {
-					logModule->logBypass("NtQueryInformationProcess ProcessDebugObjectHandle");
+					logModule->logBypass("NtQueryInformationProcess-ProcessDebugObjectHandle");
 					*((W::HANDLE *)ProcessInformation) = (W::HANDLE)0;
 					ADDRINT _eax = CODEFORSTATUSPORTNOTSET;
 					PIN_SetContextReg(ctx, REG_GAX, _eax);
@@ -221,7 +221,6 @@ namespace SYSHOOKS {
 					}
 
 					logHookId(ctx, "NTQSI-SystemProcessInformation", (ADDRINT)spi, s);
-
 					TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 
 					addTaintMemory(ctx, (ADDRINT) & (spi->NextEntryOffset), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
