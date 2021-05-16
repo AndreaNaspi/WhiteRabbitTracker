@@ -90,6 +90,7 @@ namespace State {
 		ADDRINT closeHandleStatus;
 		W::PWSTR ntCreateFileBuffer;
 		W::PWSTR ntQueryAttributesFileBuffer;
+		bool obsidiumCreateFile;
 	};
 
 	/* ===================================================================== */

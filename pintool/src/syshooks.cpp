@@ -73,16 +73,15 @@ namespace SYSHOOKS {
 		apiOutputs->ntCreateFileBuffer = p->Buffer;
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			if (_knobBypass) {
-				//VBOXGUEST pass for Obsidium anti-dbi
-#if 0
-				char* vBoxGuestFile[] = { "VBOXGUEST", NULL };
-				if (lookupSubstring(value, vBoxGuestFile))
-					return;
-#endif
+				char logName[256] = "NtCreateFile ";
+				strcat(logName, value);
+				logModule->logBypass(logName);
+				//VBOXGUEST pass for Obsidium anti-vm and anti-dbi
+				char* defaultGenericFilenames[] = { "VBOXGUEST",NULL };
+				if (lookupSubstring(value, defaultGenericFilenames) && mode == 1) {
+					apiOutputs->obsidiumCreateFile = true;
+				}
 				for (W::USHORT i = p->Length - 8; i < p->Length - 1; i += 2) {
-					char logName[256] = "NtCreateFile ";
-					strcat(logName, value);
-					logModule->logBypass(logName);
 					memcpy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 					PIN_SafeCopy((char*)p->Buffer + i, WSTR_CREATEFILE, sizeof(wchar_t));
 				}
@@ -106,6 +105,10 @@ namespace SYSHOOKS {
 			// High false positive rate, taint only suspicious files
 			logHookId(ctx, "NtCreateFile", (ADDRINT)handle, sizeof(W::HANDLE));
 			addTaintMemory(ctx, (ADDRINT)handle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtCreateFile");
+			if (apiOutputs->obsidiumCreateFile) {
+				PIN_SetContextReg(ctx, REG_GAX, -1);
+				apiOutputs->obsidiumCreateFile = false;
+			}
 		}
 	}
 
@@ -307,15 +310,17 @@ namespace SYSHOOKS {
 				char vbox[] = { "VirtualBox" };
 				char vbox2[] = { "vbox" };
 				char vbox3[] = { "VBOX" };
+				char vbox4[] = { "Virtual Machine" };
 				char escape[] = { "aaaaaaaaaa" };
 				char escape2[] = { "aaaa" };
+				char escape3[] = { "aaaaaaa aaaaaaa" };
 				W::ULONG sizeVbox = (W::ULONG)Helper::_strlen_a(vbox);
 				W::ULONG sizeVbox2 = (W::ULONG)Helper::_strlen_a(vbox2);
 				W::ULONG sizeVbox3 = (W::ULONG)Helper::_strlen_a(vbox3);
-
+				W::ULONG sizeVbox4 = (W::ULONG)Helper::_strlen_a(vbox4);
 
 				PSYSTEM_FIRMWARE_TABLE_INFORMATION info = (PSYSTEM_FIRMWARE_TABLE_INFORMATION)sc->arg1;
-				// Scan entire bios in order to find vbox string
+				// Scan entire bios in order to find vbox strings
 				logModule->logBypass("NtQSI-SystemFirmwareTableInformation VBox");
 				for (size_t i = 0; i < info->TableBufferLength - sizeVbox; i++) {
 					if (memcmp(info->TableBuffer + i, vbox, sizeVbox) == 0 && _knobBypass) {
@@ -325,20 +330,33 @@ namespace SYSHOOKS {
 						memcmp(info->TableBuffer + i, vbox3, sizeVbox3) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape2, sizeof(escape2));
 					}
-				}
-
-				// VMware part
-				char vmware[] = { "VMware" };
-				char escape3[] = { "aaaaaa" };
-				W::ULONG vmwareSize = (W::ULONG)Helper::_strlen_a(vmware);
-
-				logModule->logBypass("NtQSI-SystemFirmwareTableInformation VMWare");
-				for (size_t i = 0; i < info->TableBufferLength - vmwareSize; i++) {
-					if (memcmp(info->TableBuffer + i, vmware, vmwareSize) == 0 && _knobBypass) {
+					else if (memcmp(info->TableBuffer + i, vbox4, sizeVbox4) == 0) {
 						PIN_SafeCopy(info->TableBuffer + i, escape3, sizeof(escape3));
 					}
 				}
 
+				// Scan entire bios in order to find VMware string
+				char vmware[] = { "VMware" };
+				char vmware2[] = { "Virtual Machine" };
+				char escape4[] = { "aaaaaa" };
+				char escape5[] = { "aaaaaaa aaaaaaa" };
+				W::ULONG vmwareSize = (W::ULONG)Helper::_strlen_a(vmware);
+				W::ULONG vmwareSize2 = (W::ULONG)Helper::_strlen_a(vmware2);
+
+				logModule->logBypass("NtQSI-SystemFirmwareTableInformation VMWare");
+				for (size_t i = 0; i < info->TableBufferLength - vmwareSize; i++) {
+					if (memcmp(info->TableBuffer + i, vmware, vmwareSize) == 0 && _knobBypass) {
+						PIN_SafeCopy(info->TableBuffer + i, escape4, sizeof(escape4));
+					}
+					else if (memcmp(info->TableBuffer + i, vmware2, vmwareSize2) == 0) {
+						PIN_SafeCopy(info->TableBuffer + i, escape5, sizeof(escape5));
+					}
+				}
+
+				// Bypass a possible signature detection
+				PIN_SetContextReg(ctx, REG_EAX, 0);
+
+				// Taint the table buffer
 				logHookId(ctx, "NtQSI-SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
 				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQSI-SystemFirmwareTableInformation");
 			}

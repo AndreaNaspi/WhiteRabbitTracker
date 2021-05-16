@@ -62,6 +62,7 @@ void SpecialInstructionsHandler::regInit(REGSET* regsIn, REGSET* regsOut) {
 	REGSET_Insert(*regsOut, REG_GBX);
 	REGSET_Insert(*regsOut, REG_GDX);
 	REGSET_Insert(*regsOut, REG_GCX);
+	REGSET_Insert(*regsOut, REG_ESI);
 }
 
 /* ===================================================================== */
@@ -108,7 +109,7 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_PTR, &cpuidCount,
 			IARG_END);
 	}
-	// if "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
+	// If "rdtsc" instruction (log and alter values to avoid VM/sandbox detection)
 	else if ((disassembled_ins.find("rdtsc") != std::string::npos && ((xed_iclass_enum_t)INS_Opcode(ins)) == XED_ICLASS_RDTSC)) {
 		// Insert a post-call to alter eax and edx registers (rdtsc results) in case of rdtsc instruction (avoid VM/sandbox detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
@@ -119,21 +120,40 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_PTR, &rdtscCount,
 			IARG_END);
 	}
-	// if "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
+	// If "int 2d" instruction (log and generate exception to avoid VM/sandbox detection)
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "int 0x2d") || disassembled_ins.find("int 0x2d") != std::string::npos) {
 		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::Int2dCalled,
 			IARG_CONTEXT,
 			IARG_ADDRINT, curEip,
 			IARG_END);
 	}
-	// if "in eax, dx" instruction (log and alter values to avoid VMWare detection
+	// If "in eax, dx" instruction (log and alter values to avoid VMWare detection)
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || disassembled_ins.find("in eax, dx") != std::string::npos) {
 		// Insert a post-call to alter ebx register ('in eax, dx' result) in case of 'in eax, dx' instruction (avoid VMWare detection)
 		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
+		INS_Delete(ins);
 		INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx,
 			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
 			IARG_ADDRINT, curEip,
 			IARG_END);
+	}
+	// Bypass the Obsidium disk drive name check
+	else if (disassembled_ins.find("cmp byte ptr [eax], 0x56") != string::npos) {
+		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
+		// Insert a pre-call to alter the eax register that contains the disk drive name
+		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)SpecialInstructionsHandler::KillObsidiumDiskDriveCheck,
+			IARG_PARTIAL_CONTEXT, &regsIn, &regsOut,
+			IARG_END);
+	}
+	// Bypass the Obsidium pattern maching in order to avoid the dead path
+	if (disassembled_ins.find("xor eax, dword ptr [edx+ecx*8+0x4]") != string::npos) {
+		// Insert a post-call to alter the eax register and avoid pattern matching
+		specialInstructionsHandlerInfo->regInit(&regsIn, &regsOut);
+		if (INS_HasFallThrough(ins)) {
+			INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::KillObsidiumDeadPath,
+				IARG_PARTIAL_CONTEXT, &regsIn, &regsOut, 
+				IARG_END);
+		}
 	}
 }
 
@@ -261,11 +281,29 @@ void SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDR
 	CHECK_EIP_ADDRESS(cur_eip);
 	SpecialInstructionsHandler *classHandler = SpecialInstructionsHandler::getInstance();
 	if (_knobBypass) {
-		// Change return value (ebx) of the instruction 'in eax, dx'
+		// Change return value (eax, ebx) of the instruction 'in eax, dx'
+		ADDRINT _eax = 0;
 		ADDRINT _ebx = 0;
+		PIN_SetContextReg(ctxt, REG_GAX, _eax);
 		PIN_SetContextReg(ctxt, REG_GBX, _ebx);
 		classHandler->logInfo->logBypass("IN EAX, DX");
 	}
 	// Taint the registers
 	TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
+} 
+
+/* ===================================================================== */
+/* Function to handle the Obsidium disk drive name check                 */
+/* ===================================================================== */
+VOID SpecialInstructionsHandler::KillObsidiumDiskDriveCheck(CONTEXT* ctxt) {
+	ADDRINT _eax;
+	PIN_GetContextRegval(ctxt, REG_GAX, reinterpret_cast<UINT8*>(&_eax));
+	*((ADDRINT*)_eax) = 0;
+}
+
+/* ===================================================================== */
+/* Function to handle the Obsidium pattern matching to avoid dead path   */
+/* ===================================================================== */
+VOID SpecialInstructionsHandler::KillObsidiumDeadPath(CONTEXT* ctxt) {
+	PIN_SetContextReg(ctxt, REG_EAX, 0x7);
 }

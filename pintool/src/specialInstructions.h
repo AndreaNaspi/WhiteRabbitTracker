@@ -70,6 +70,16 @@ public:
 	/* ===================================================================== */
 	static void InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDRINT cur_eip);
 
+	/* ===================================================================== */
+	/* Function to handle the Obsidium disk drive name check                 */
+	/* ===================================================================== */
+	static void KillObsidiumDiskDriveCheck(CONTEXT* ctxt);
+
+	/* ===================================================================== */
+	/* Function to handle the Obsidium pattern matching to avoid dead path   */
+	/* ===================================================================== */
+	static void KillObsidiumDeadPath(CONTEXT* ctxt);
+
 protected:
 	/* ===================================================================== */
 	/* Define variables                                                      */
