@@ -187,52 +187,60 @@ void SpecialInstructionsHandler::AlterCpuidValues(ADDRINT ip, CONTEXT * ctxt, AD
 	PIN_GetContextRegval(ctxt, REG_GDX, reinterpret_cast<UINT8*>(&_edx));
 	// EAX = 1 -> processor info and feature bits in ECX
 	if (gs->cpuid_eax == 1) {
-		if (_knobBypass) {
-			UINT32 mask = 0xFFFFFFFFULL;
-			_ecx &= (mask >> 1);
-			if ((*cpuidCount) <= MAX_CPUID) // very high load
-				classHandler->logInfo->logBypass("CPUID 0x1");
-		}
-		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+		UINT32 mask = 0xFFFFFFFFULL;
+		_ecx &= (mask >> 1);
+		if ((*cpuidCount) <= MAX_CPUID)
+			classHandler->logInfo->logBypass("CPUID 0x1");
+#if TAINT_CPUID
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
+		TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+#endif	
 	}
 	// EAX >= 0x40000000 && EAX <= 0x400000FF -> reserved cpuid levels for Intel and AMD to provide an interface to pass information from the hypervisor to the guest (VM)
 	else if (gs->cpuid_eax >= 0x40000000 && gs->cpuid_eax <= 0x400000FF) {
 		// Set the registers to value 0 unsigned long long
-		if (_knobBypass) {
-			_ebx = 0x0ULL;
-			_ecx = 0x0ULL;
-			_edx = 0x0ULL;
-			if ((*cpuidCount) <= MAX_CPUID) // very high load
-				classHandler->logInfo->logBypass("CPUID 0x4");
-		}
-		// TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+		_ebx = 0x0ULL;
+		_ecx = 0x0ULL;
+		_edx = 0x0ULL;
+		if ((*cpuidCount) <= MAX_CPUID) // very high load
+			classHandler->logInfo->logBypass("CPUID 0x4");
+#if TAINT_CPUID
+		TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); // very high load
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
+		TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1); // very high load
+		TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+#endif
 	}
 	else if (gs->cpuid_eax == 0x80000000) {
-		if ((*cpuidCount) <= MAX_CPUID) // very high load
+		if ((*cpuidCount) <= MAX_CPUID) 
 			classHandler->logInfo->logBypass("CPUID 0x80");
-		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+#if TAINT_CPUID
+		TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+#endif
 	}
 	else if (gs->cpuid_eax == 0x80000001) {
-		if ((*cpuidCount) <= MAX_CPUID) // very high load
+		if ((*cpuidCount) <= MAX_CPUID) 
 			classHandler->logInfo->logBypass("CPUID 0x81");
-		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+#if TAINT_CPUID
+		TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+#endif
 	}
 	else if (gs->cpuid_eax >= 0x80000002 && gs->cpuid_eax <= 0x80000004) {
-		if ((*cpuidCount) <= MAX_CPUID) // very high load
+		if ((*cpuidCount) <= MAX_CPUID)
 			classHandler->logInfo->logBypass("CPUID 0x82+");
-		// TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1); // very high load
-		// TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1); // very high load
+#if TAINT_CPUID
+		TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1); 
+		TAINT_TAG_REG(ctxt, GPR_ECX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+		TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+#endif
 	}
-	// Change cpuid results (EBX, ECX, EDX)
-	PIN_SetContextReg(ctxt, REG_GBX, _ebx);
-	PIN_SetContextReg(ctxt, REG_GCX, _ecx);
-	PIN_SetContextReg(ctxt, REG_GDX, _edx);
+	if (_knobBypass) {
+		// Change cpuid results (EBX, ECX, EDX)
+		PIN_SetContextReg(ctxt, REG_GBX, _ebx);
+		PIN_SetContextReg(ctxt, REG_GCX, _ecx);
+		PIN_SetContextReg(ctxt, REG_GDX, _edx);
+	}
 }
 
 /* ===================================================================== */
@@ -255,9 +263,11 @@ void SpecialInstructionsHandler::AlterRdtscValues(ADDRINT ip, CONTEXT * ctxt, AD
 		if((*rdtscCount) <= MAX_RDTSC) // very high load
 			classHandler->logInfo->logBypass("RDTSC"); 
 	}
-	// Taint the registers (very high high load)
-	//TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
-	//TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+	// Taint the registers (very high load)
+#if TAINT_RDTSC
+	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+	TAINT_TAG_REG(ctxt, GPR_EDX, 1, 1, 1, 1);
+#endif
 }
 /* ===================================================================== */
 /* Function to handle the int 2d instruction                             */
@@ -289,7 +299,10 @@ void SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDR
 		classHandler->logInfo->logBypass("IN EAX, DX");
 	}
 	// Taint the registers
+#if TAINT_IN
+	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
 	TAINT_TAG_REG(ctxt, GPR_EBX, 1, 1, 1, 1);
+#endif
 } 
 
 /* ===================================================================== */
@@ -298,12 +311,20 @@ void SpecialInstructionsHandler::InEaxEdxCalledAlterValueEbx(CONTEXT* ctxt, ADDR
 VOID SpecialInstructionsHandler::KillObsidiumDiskDriveCheck(CONTEXT* ctxt) {
 	ADDRINT _eax;
 	PIN_GetContextRegval(ctxt, REG_GAX, reinterpret_cast<UINT8*>(&_eax));
-	*((ADDRINT*)_eax) = 0;
+	if (_knobBypass) {
+		*((ADDRINT*)_eax) = 0;
+	}
+	// Taint the registers
+#if TAINT_OBSIDIUM_DISK_DRIVE
+	TAINT_TAG_REG(ctxt, GPR_EAX, 1, 1, 1, 1);
+#endif
 }
 
 /* ===================================================================== */
 /* Function to handle the Obsidium pattern matching to avoid dead path   */
 /* ===================================================================== */
 VOID SpecialInstructionsHandler::KillObsidiumDeadPath(CONTEXT* ctxt) {
-	PIN_SetContextReg(ctxt, REG_EAX, 0x7);
+	if (_knobBypass) {
+		PIN_SetContextReg(ctxt, REG_EAX, 0x7);
+	}
 }

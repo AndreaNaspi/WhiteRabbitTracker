@@ -2,28 +2,8 @@
 #include "memory.h"
 #include "state.h"
 #include "HiddenElements.h"
+#include "taint.h"
 #include "helper.h"
-
-/* ===================================================================== */
-/* Define taint color                                                    */
-/* ===================================================================== */
-#define TAINT_COLOR_1 0x01
-#define TAINT_COLOR_2 0x02
-#define TAINT_COLOR_3 0x03
-#define TAINT_COLOR_4 0x04
-#define TAINT_COLOR_5 0x05
-#define TAINT_COLOR_6 0x06
-#define TAINT_COLOR_7 0x07
-#define TAINT_COLOR_8 0x08
-
-/* ============================================================================= */
-/* Define macro to taint a register using thread_ctx_ptr and GPR from libdft     */
-/* ============================================================================= */
-#define TAINT_TAG_REG(ctx, taint_gpr, t0, t1, t2, t3) do { \
-tag_t _tags[4] = {t0, t1, t2, t3}; \
-thread_ctx_t *thread_ctx = (thread_ctx_t *)PIN_GetContextReg(ctx, thread_ctx_ptr); \
-addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
-} while (0)
 
 namespace SYSHOOKS {
 
@@ -62,7 +42,7 @@ namespace SYSHOOKS {
 	/* ===================================================================== */
 	/* Handle the NtCreateFile API (Virtualbox/VMware files access)          */
 	/* ===================================================================== */
-	VOID NtCreateFile_entry(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std) {
+	VOID NtCreateFile_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
 		W::OBJECT_ATTRIBUTES *Obj = (W::OBJECT_ATTRIBUTES*)sc->arg2;
 		W::ULONG mode = (W::ULONG)sc->arg7;
 		W::PUNICODE_STRING p = Obj->ObjectName;
@@ -77,7 +57,7 @@ namespace SYSHOOKS {
 				strcat(logName, value);
 				logModule->logBypass(logName);
 				//VBOXGUEST pass for Obsidium anti-vm and anti-dbi
-				char* defaultGenericFilenames[] = { "VBOXGUEST",NULL };
+				char* defaultGenericFilenames[] = { "VBOXGUEST", NULL };
 				if (lookupSubstring(value, defaultGenericFilenames) && mode == 1) {
 					apiOutputs->obsidiumCreateFile = true;
 				}
@@ -103,9 +83,11 @@ namespace SYSHOOKS {
 		GET_STR_TO_UPPER(apiOutputs->ntCreateFileBuffer, value, PATH_BUFSIZE);
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 			// High false positive rate, taint only suspicious files
+#if TAINT_NTCREATEFILE
 			logHookId(ctx, "NtCreateFile", (ADDRINT)handle, sizeof(W::HANDLE));
 			addTaintMemory(ctx, (ADDRINT)handle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtCreateFile");
-			if (apiOutputs->obsidiumCreateFile) {
+#endif
+			if (apiOutputs->obsidiumCreateFile && _knobBypass) {
 				PIN_SetContextReg(ctx, REG_GAX, -1);
 				apiOutputs->obsidiumCreateFile = false;
 			}
@@ -139,11 +121,13 @@ namespace SYSHOOKS {
 				ADDRINT _eax = CODEFORINVALIDHANDLE;
 				PIN_SetContextReg(ctx, REG_GAX, _eax);
 			}
+#if TAINT_NTOPENKEY
 			// Taint registry handler
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			// High false positive rate, taint only suspicious registry access
 			logHookId(ctx, "NtOpenKey", (ADDRINT)khandle, sizeof(W::HANDLE));
 			addTaintMemory(ctx, (ADDRINT)khandle, sizeof(W::HANDLE), TAINT_COLOR_1, true, "NtOpenKey");
+#endif
 		}
 	}
 
@@ -165,27 +149,31 @@ namespace SYSHOOKS {
 			if (ProcessInformationClass == ProcessDebugFlags) {
 				// Gives Pin away as a debugger
 				if (_knobBypass) {
-					logModule->logBypass("NtQueryInformationProcess-ProcessDebugFlags");
+					logModule->logBypass("NTQIP-ProcessDebugFlags");
 					*((W::ULONG*)ProcessInformation) = PROCESS_DEBUG_INHERIT;
 				}
-				logHookId(ctx, "NtQueryInformationProcess-ProcessDebugFlags", (ADDRINT)ProcessInformation, ProcessInformationLength);
-				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugFlags");
+#if TAINT_NTQIP_DEBUGFLAG
+				logHookId(ctx, "NTQIP-ProcessDebugFlags", (ADDRINT)ProcessInformation, ProcessInformationLength);
+				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NTQIP-ProcessDebugFlags");
+#endif
 			}			
 			else if (ProcessInformationClass == ProcessDebugObjectHandle) {
 				// Set return value to STATUS_PORT_NOT_SET
 				if (_knobBypass) {
-					logModule->logBypass("NtQueryInformationProcess-ProcessDebugObjectHandle");
+					logModule->logBypass("NTQIP-ProcessDebugObjectHandle");
 					*((W::HANDLE *)ProcessInformation) = (W::HANDLE)0;
 					ADDRINT _eax = CODEFORSTATUSPORTNOTSET;
 					PIN_SetContextReg(ctx, REG_GAX, _eax);
 				}
-				logHookId(ctx, "NtQueryInformationProcess-ProcessDebugObjectHandle", (ADDRINT)ProcessInformation, ProcessInformationLength);
-				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NtQueryInformationProcess ProcessDebugObjectHandle");
+#if TAINT_NTQIP_DEBUGOBJECT
+				logHookId(ctx, "NTQIP-ProcessDebugObjectHandle", (ADDRINT)ProcessInformation, ProcessInformationLength);
+				addTaintMemory(ctx, (ADDRINT)ProcessInformation, ProcessInformationLength, TAINT_COLOR_1, true, "NTQIP-ProcessDebugObjectHandle");
+#endif
 			}
 			else if (ProcessInformationClass == ProcessDebugPort) {
 				// Set debug port to null
 				if (_knobBypass) {
-					logModule->logBypass("NtQueryInformationProcess-ProcessDebugPort");
+					logModule->logBypass("NTQIP-ProcessDebugPort");
 					*((W::HANDLE *)ProcessInformation) = (W::HANDLE)0;
 				}
 			}
@@ -219,7 +207,7 @@ namespace SYSHOOKS {
 							PIN_SafeCopy(spi->ImageName.Buffer, BP_FAKEPROCESSW, sizeof(BP_FAKEPROCESSW));
 						}
 					}
-
+#if TAINT_NTQSI_PROCESSINFO
 					logHookId(ctx, "NTQSI-SystemProcessInformation", (ADDRINT)spi, s);
 					TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 
@@ -248,6 +236,7 @@ namespace SYSHOOKS {
 					addTaintMemory(ctx, (ADDRINT) & (spi->BasePriority), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
 					addTaintMemory(ctx, (ADDRINT) & (spi->ProcessId), sizeof(W::HANDLE), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
 					addTaintMemory(ctx, (ADDRINT) & (spi->InheritedFromProcessId), sizeof(W::HANDLE), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+#endif
 				}
 				spi = (PSYSTEM_PROCESS_INFO)((W::LPBYTE)spi + spi->NextEntryOffset); // Calculate the address of the next entry
 			}
@@ -270,7 +259,9 @@ namespace SYSHOOKS {
 
 			unsigned long size = pmi->NumberOfModules;
 
+#if TAINT_NTQSI_MODULEINFO
 			logHookId(ctx, "NTQSI-SystemModuleInformation", (ADDRINT)pmi, s);
+#endif
 
 			for (size_t i = 0; i < size; i++) {
 				if (strstr((char*)pmi->Modules[i].FullPathName, "VBox") != NULL) {
@@ -279,7 +270,7 @@ namespace SYSHOOKS {
 
 					char* tmpAddr = (char*)pmi->Modules[i].FullPathName;
 					size_t len = strlen(tmpAddr) + 1;
-
+#if TAINT_NTQSI_MODULEINFO
 					addTaintMemory(ctx, (ADDRINT) & (pmi->NumberOfModules), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
 					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Section), sizeof(W::HANDLE), 8, true, "NTQSI-SystemModuleInformation");
 					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].MappedBase), 4U, 8, true, "NTQSI-SystemModuleInformation");
@@ -291,6 +282,7 @@ namespace SYSHOOKS {
 					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadCount), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
 					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].OffsetToFileName), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
 					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].FullPathName), len, 8, true, "NTQSI-SystemModuleInformation");
+#endif
 					for (size_t i = 0; i < len - 1; i++) {
 						if(_knobBypass)
 							PIN_SafeCopy(tmpAddr + i, "a", sizeof(char));
@@ -306,6 +298,7 @@ namespace SYSHOOKS {
 				if (sizeOut > sizeIn) return;
 
 				// Virtualbox part
+				// different colors for each suspicious string
 				char vbox[] = { "VirtualBox" };
 				char vbox2[] = { "vbox" };
 				char vbox3[] = { "VBOX" };
@@ -356,18 +349,22 @@ namespace SYSHOOKS {
 				PIN_SetContextReg(ctx, REG_EAX, 0);
 
 				// Taint the table buffer
+#if TAINT_NTQSI_FIRMWAREINFO
 				logHookId(ctx, "NtQSI-SystemFirmwareTableInformation", (ADDRINT)info->TableBuffer, info->TableBufferLength);
 				addTaintMemory(ctx, (ADDRINT)info->TableBuffer, info->TableBufferLength, TAINT_COLOR_1, true, "NtQSI-SystemFirmwareTableInformation");
+#endif
 			}
 		}
 		else if (sc->arg0 == SystemKernelDebuggerInformation) {
 			PSYSTEM_KERNEL_DEBUGGER_INFORMATION skdi = (PSYSTEM_KERNEL_DEBUGGER_INFORMATION)sc->arg1;
 			W::ULONG s = (W::ULONG)sc->arg2;
 			logModule->logBypass("NtQSI-SystemKernelDebuggerInformation");
+#if TAINT_NTQSI_KERNELINFO
 			logHookId(ctx, "NtQSI-SystemKernelDebuggerInformation", (ADDRINT)skdi, s);
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerEnabled), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
 			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerNotPresent), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
+#endif
 		}
 	}
 
@@ -406,6 +403,7 @@ namespace SYSHOOKS {
 		GET_STR_TO_UPPER(apiOutputs->ntQueryAttributesFileBuffer, value, PATH_BUFSIZE);
 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
+#if TAINT_NTQUERYATTRIBUTESFILE
 			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
 			logHookId(ctx, "NtQueryAttributesFile", (ADDRINT)basicInfo, sizeof(W::FILE_BASIC_INFO));
 			//Tainting the wholw FILE_BASIC_INFO data structure
@@ -434,6 +432,7 @@ namespace SYSHOOKS {
 			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
 
 			addTaintMemory(ctx, (ADDRINT) & (basicInfo->FileAttributes), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+#endif
 		}
 	}
 
@@ -473,6 +472,8 @@ namespace SYSHOOKS {
 			}
 		}
 		// Taint registry handler
+#if TAINT_NTFINDWINDOW
 		TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+#endif
 	}
 }

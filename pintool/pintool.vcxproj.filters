@@ -151,5 +151,8 @@
     <ClInclude Include="src\callStack.h">
       <Filter>Header files</Filter>
     </ClInclude>
+    <ClInclude Include="src\taint.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

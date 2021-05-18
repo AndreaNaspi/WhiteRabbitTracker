@@ -372,13 +372,14 @@ def main():
 	# define large chunks with more than 10 intervals
 	THRESHOLD = 10
 	largeChunks = [] # list<pair<start,end>>
-	print(producerChunks)
 	for hookId, hookId_products in producerChunks.items():
+		print(hookId_products.hookChunks)
 		if len(hookId_products.hookChunks) >= THRESHOLD:
 			if hookId in prodLargeRange.keys():
 				hookId_products.hookLargeChunks = prodLargeRange[hookId]
 				if prodLargeRange[hookId] not in largeChunks:
 					largeChunks.append(prodLargeRange[hookId])
+	print(largeChunks)
 
 	# WRITE DOT FILE
 	output = ""

@@ -14,6 +14,7 @@
 #include "syshooking.h"
 #include "callStack.h"
 #include "disassembler.h"
+#include "taint.h"
 using std::cerr;
 using std::ofstream;
 using std::ios;

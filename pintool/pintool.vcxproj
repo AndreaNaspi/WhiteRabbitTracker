@@ -357,6 +357,7 @@
     <ClInclude Include="src\state.h" />
     <ClInclude Include="src\syshooking.h" />
     <ClInclude Include="src\syshooks.h" />
+    <ClInclude Include="src\taint.h" />
     <ClInclude Include="src\winheaders.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
