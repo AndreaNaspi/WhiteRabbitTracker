@@ -216,13 +216,13 @@ def findProdHeuristics(directoryTaintedLogs, definitiveChunksRoot):
 								(instructionType == "mem-imm" or instructionType == "mem-reg"):
 							taintColor = int(splittedLog[2].replace("[", "").replace("]", ""))
 							memAddress = int(splittedLog[4].split("(")[0], 16)
-							insAddress = int(splittedLog[1], 16)
+							xorHash = int(splittedLog[7], 16)
 							res: TaintedChunk = searchTaintedChunk(definitiveChunksRoot, memAddress)
 							if res is not None:
 								if (res.start, res.end) not in rangeProd.keys():
-									rangeProd.update({(res.start, res.end): (insAddress, taintColor)})
+									rangeProd.update({(res.start, res.end): (xorHash, taintColor)})
 								else:
-									rangeProd[(res.start, res.end)] = (insAddress, taintColor)
+									rangeProd[(res.start, res.end)] = (xorHash, taintColor)
 	return rangeProd, addrCol
 
 
@@ -373,13 +373,11 @@ def main():
 	THRESHOLD = 10
 	largeChunks = [] # list<pair<start,end>>
 	for hookId, hookId_products in producerChunks.items():
-		print(hookId_products.hookChunks)
 		if len(hookId_products.hookChunks) >= THRESHOLD:
 			if hookId in prodLargeRange.keys():
 				hookId_products.hookLargeChunks = prodLargeRange[hookId]
 				if prodLargeRange[hookId] not in largeChunks:
 					largeChunks.append(prodLargeRange[hookId])
-	print(largeChunks)
 
 	# WRITE DOT FILE
 	output = ""
