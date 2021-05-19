@@ -209,33 +209,33 @@ namespace SYSHOOKS {
 					}
 #if TAINT_NTQSI_PROCESSINFO
 					logHookId(ctx, "NTQSI-SystemProcessInformation", (ADDRINT)spi, s);
-					TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+					TAINT_TAG_REG(ctx, GPR_EAX, TAINT_COLOR_5, TAINT_COLOR_5, TAINT_COLOR_5, TAINT_COLOR_5);
 
-					addTaintMemory(ctx, (ADDRINT) & (spi->NextEntryOffset), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->NumberOfThreads), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->NextEntryOffset), sizeof(W::ULONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->NumberOfThreads), sizeof(W::ULONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
 
-					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.HighPart), sizeof(W::LONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->CreateTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
 
-					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.HighPart), sizeof(W::LONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->UserTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
 
-					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.HighPart), sizeof(W::LONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->KernelTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
 
-					addTaintMemory(ctx, (ADDRINT)(spi->ImageName.Buffer), spi->ImageName.Length, TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->BasePriority), sizeof(W::ULONG), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->ProcessId), sizeof(W::HANDLE), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
-					addTaintMemory(ctx, (ADDRINT) & (spi->InheritedFromProcessId), sizeof(W::HANDLE), TAINT_COLOR_1, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT)(spi->ImageName.Buffer), spi->ImageName.Length, TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->BasePriority), sizeof(W::ULONG), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->ProcessId), sizeof(W::HANDLE), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
+					addTaintMemory(ctx, (ADDRINT) & (spi->InheritedFromProcessId), sizeof(W::HANDLE), TAINT_COLOR_5, true, "NTQSI-SystemProcessInformation");
 #endif
 				}
 				spi = (PSYSTEM_PROCESS_INFO)((W::LPBYTE)spi + spi->NextEntryOffset); // Calculate the address of the next entry
@@ -266,22 +266,22 @@ namespace SYSHOOKS {
 			for (size_t i = 0; i < size; i++) {
 				if (strstr((char*)pmi->Modules[i].FullPathName, "VBox") != NULL) {
 
-					TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+					TAINT_TAG_REG(ctx, GPR_EAX, TAINT_COLOR_4, TAINT_COLOR_4, TAINT_COLOR_4, TAINT_COLOR_4);
 
 					char* tmpAddr = (char*)pmi->Modules[i].FullPathName;
 					size_t len = strlen(tmpAddr) + 1;
 #if TAINT_NTQSI_MODULEINFO
-					addTaintMemory(ctx, (ADDRINT) & (pmi->NumberOfModules), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Section), sizeof(W::HANDLE), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].MappedBase), 4U, 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].ImageBase), 4U, 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].ImageSize), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Flags), sizeof(W::ULONG), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadOrderIndex), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].InitOrderIndex), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadCount), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].OffsetToFileName), sizeof(W::USHORT), 8, true, "NTQSI-SystemModuleInformation");
-					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].FullPathName), len, 8, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->NumberOfModules), sizeof(W::ULONG), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Section), sizeof(W::HANDLE), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].MappedBase), 4U, TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].ImageBase), 4U, TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].ImageSize), sizeof(W::ULONG), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].Flags), sizeof(W::ULONG), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadOrderIndex), sizeof(W::USHORT), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].InitOrderIndex), sizeof(W::USHORT), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].LoadCount), sizeof(W::USHORT), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT) & (pmi->Modules[i].OffsetToFileName), sizeof(W::USHORT), TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
+					addTaintMemory(ctx, (ADDRINT)(pmi->Modules[i].FullPathName), len, TAINT_COLOR_4, true, "NTQSI-SystemModuleInformation");
 #endif
 					for (size_t i = 0; i < len - 1; i++) {
 						if(_knobBypass)
@@ -361,9 +361,9 @@ namespace SYSHOOKS {
 			logModule->logBypass("NtQSI-SystemKernelDebuggerInformation");
 #if TAINT_NTQSI_KERNELINFO
 			logHookId(ctx, "NtQSI-SystemKernelDebuggerInformation", (ADDRINT)skdi, s);
-			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
-			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerEnabled), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
-			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerNotPresent), sizeof(W::BOOLEAN), 32, true, "NtQSI-SystemKernelDebuggerInformation");
+			TAINT_TAG_REG(ctx, GPR_EAX, TAINT_COLOR_6, TAINT_COLOR_6, TAINT_COLOR_6, TAINT_COLOR_6);
+			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerEnabled), sizeof(W::BOOLEAN), TAINT_COLOR_6, true, "NtQSI-SystemKernelDebuggerInformation");
+			addTaintMemory(ctx, (ADDRINT) & (skdi->KernelDebuggerNotPresent), sizeof(W::BOOLEAN), TAINT_COLOR_6, true, "NtQSI-SystemKernelDebuggerInformation");
 #endif
 		}
 	}
@@ -404,34 +404,34 @@ namespace SYSHOOKS {
 
 		if (HiddenElements::shouldHideGenericFileNameStr(value)) {
 #if TAINT_NTQUERYATTRIBUTESFILE
-			TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+			TAINT_TAG_REG(ctx, GPR_EAX, TAINT_COLOR_1, TAINT_COLOR_1, TAINT_COLOR_1, TAINT_COLOR_1);
 			logHookId(ctx, "NtQueryAttributesFile", (ADDRINT)basicInfo, sizeof(W::FILE_BASIC_INFO));
 			//Tainting the wholw FILE_BASIC_INFO data structure
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->CreationTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
 
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastAccessTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
 
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->LastWriteTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
 
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.u.HighPart), sizeof(W::LONG), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.u.LowPart), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.QuadPart), sizeof(W::LONGLONG), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.u.HighPart), sizeof(W::LONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.u.LowPart), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->ChangeTime.QuadPart), sizeof(W::LONGLONG), TAINT_COLOR_1, true, "NtQueryAttributesFile");
 
-			addTaintMemory(ctx, (ADDRINT) & (basicInfo->FileAttributes), sizeof(W::DWORD), 1, true, "NtQueryAttributesFile");
+			addTaintMemory(ctx, (ADDRINT) & (basicInfo->FileAttributes), sizeof(W::DWORD), TAINT_COLOR_1, true, "NtQueryAttributesFile");
 #endif
 		}
 	}

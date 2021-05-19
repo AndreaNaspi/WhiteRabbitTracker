@@ -164,7 +164,6 @@ W::DWORD searchNearestValueExportMap(std::map<W::DWORD, std::string> exportsMap,
 	return currentAddr;
 }
 
-
 static void PIN_FAST_ANALYSIS_CALL
 detected_call(thread_ctx_t* thread_ctx, ADDRINT callTargetAddress, ADDRINT retTargetAddress, ADDRINT currentSPAddress, ADDRINT ipAddress) {
 	callStackPush(thread_ctx->ttinfo.shadowStackThread, callTargetAddress, retTargetAddress, currentSPAddress);

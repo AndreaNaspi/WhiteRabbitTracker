@@ -771,12 +771,12 @@ VOID GetAdaptersInfoExit(CONTEXT* ctx, ADDRINT ret, ADDRINT esp) {
 			}
 		}
 #if TAINT_GETADAPTERSINFO
-		addTaintMemory(ctx, (ADDRINT)(adapInfo->AdapterName), MAX_ADAPTER_NAME_LENGTH + 4, 4, true, "GetAdaptersInfo");
-		addTaintMemory(ctx, (ADDRINT)(adapInfo->Description), MAX_ADAPTER_DESCRIPTION_LENGTH + 4, 4, true, "GetAdaptersInfo");
-		addTaintMemory(ctx, (ADDRINT) & (adapInfo->AddressLength), sizeof(UINT), 4, true, "GetAdaptersInfo");
-		addTaintMemory(ctx, (ADDRINT)(adapInfo->Address), MAX_ADAPTER_ADDRESS_LENGTH, 4, true, "GetAdaptersInfo");
-		addTaintMemory(ctx, (ADDRINT) & (adapInfo->Index), sizeof(W::DWORD), 4, true, "GetAdaptersInfo");
-		addTaintMemory(ctx, (ADDRINT) & (adapInfo->Type), sizeof(W::UINT), 4, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT)(adapInfo->AdapterName), MAX_ADAPTER_NAME_LENGTH + 4, TAINT_COLOR_3, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT)(adapInfo->Description), MAX_ADAPTER_DESCRIPTION_LENGTH + 4, TAINT_COLOR_3, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT) & (adapInfo->AddressLength), sizeof(UINT), TAINT_COLOR_3, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT)(adapInfo->Address), MAX_ADAPTER_ADDRESS_LENGTH, TAINT_COLOR_3, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT) & (adapInfo->Index), sizeof(W::DWORD), TAINT_COLOR_3, true, "GetAdaptersInfo");
+		addTaintMemory(ctx, (ADDRINT) & (adapInfo->Type), sizeof(W::UINT), TAINT_COLOR_3, true, "GetAdaptersInfo");
 #endif
 
 		adapInfo = adapInfo->Next;
@@ -788,7 +788,7 @@ VOID EnumDisplaySettingsEntry(W::LPCTSTR* devName, CONTEXT* ctx) {
 		memset((void*)*devName, CHAR_EDS, W::lstrlen(*devName));
 #if TAINT_ENUMDISPLAYSETTINGS
 	logHookId(ctx, "EnumDisplaySettings", (ADDRINT)devName, W::lstrlen(*devName));
-	addTaintMemory(ctx, (ADDRINT)devName, W::lstrlen(*devName), 64, true, "EnumDisplaySettings");
+	addTaintMemory(ctx, (ADDRINT)devName, W::lstrlen(*devName), TAINT_COLOR_7, true, "EnumDisplaySettings");
 #endif
 }
 
@@ -905,7 +905,7 @@ VOID LoadLibraryExit(CONTEXT* ctx, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Taint source: API return value (very high load)
 #if TAINT_LOADLIBRARY
-	TAINT_TAG_REG(ctx, GPR_EAX, 1, 1, 1, 1);
+	TAINT_TAG_REG(ctx, GPR_EAX, TAINT_COLOR_8, TAINT_COLOR_8, TAINT_COLOR_8, TAINT_COLOR_8);
 #endif
 }
 
