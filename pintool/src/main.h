@@ -10,11 +10,16 @@
 #include "SpecialInstructions.h"
 #include "functions.h"
 #include "HiddenElements.h"
-#include "helper.h"
 #include "syshooking.h"
 #include "callStack.h"
 #include "disassembler.h"
 #include "taint.h"
+#include "helper.h"
+// libdft
+#include "libdft/libdft_config.h"
+#include "libdft/bridge.h"
+#include "libdft/libdft_api.h"
+#include "libdft/tagmap.h"
 using std::cerr;
 using std::ofstream;
 using std::ios;

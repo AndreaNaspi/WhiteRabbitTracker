@@ -236,14 +236,17 @@ def addrColourToChunksRoot(definitiveChunksRoot, addrCols):
 def main():
 	# sanity check
 	if len(sys.argv) != 2:
-		print("Usage: python offlineAnalysis.py PATH_TO_TAINTED_LOGS (e.g. C:\\Pin315\\taint\\)")
+		print("Usage: python offlineAnalysis.py PATH_TO_TAINTED_LOGS PATH_TO_CALL_STACK_LOG (e.g. offlineAnalysis.py C:\\Pin315\\taint\\ C:\\Pin315\\callstack.log)")
 		return -1
 
 	directoryTaintedLogs = sys.argv[1]
+	callStackLog = sys.argv[2]
 
-	# sanity check
+	# sanity checks
 	if isdir(directoryTaintedLogs) is False:
-		print("The given path is not a directory!")
+		print("The given path to the tainted logs is not a directory!")
+	if isfile(callStackLog) is False:
+		print("The given path to the call stack log is not a file!")
 
 	# create logging file
 	for handler in logging.root.handlers[:]:

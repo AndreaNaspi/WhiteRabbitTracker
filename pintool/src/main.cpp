@@ -332,6 +332,7 @@ int main(int argc, char * argv[]) {
 
 	// Open output file using the logging module (API tracing)
 	logInfo.init(LOGPATH MAIN_LOG_NAME);
+	initLoggerShadowCallStack(LOGPATH CALLSTACK_LOG_NAME);
 
 	// Setup knob variables
 	_knobBypass = knobBypass.Value();

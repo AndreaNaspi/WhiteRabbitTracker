@@ -5,6 +5,7 @@
 #include <fstream>
 
 #define MAIN_LOG_NAME "profile.log"
+#define CALLSTACK_LOG_NAME "callstack.log"
 
 class LoggingInfo
 {
@@ -31,7 +32,7 @@ public:
 	void init(std::string fileName) {
 		// Check if file name is empty or null
 		if (fileName.empty()) {
-			fileName = "output.log";
+			fileName = "profile.log";
 		} 
 		// Save the file name in a global variable
 		m_logFileName = fileName;

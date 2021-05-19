@@ -8,6 +8,11 @@
 #include "../state.h"
 #include "../disassembler.h"
 
+// Shadow call stack log name
+std::string m_logCallStackFileName;
+// Output file stream object for shadow call stack logging
+std::ofstream m_logCallStackFile;
+
 #define TTINFO(field) thread_ctx->ttinfo.field
 
 #define RTAG thread_ctx->vcpu.gpr
@@ -15,7 +20,7 @@
     {RTAG[(RIDX)][0], RTAG[(RIDX)][1], RTAG[(RIDX)][2], RTAG[(RIDX)][3]}
 
 // Declaring map where to place which hashID has been seen till now for calling context
-std::map<ADDRINT, bool> hash_mapping;
+std::map<ADDRINT, bool> hashMapping;
 
 void addTaintRegister(thread_ctx_t *thread_ctx, int gpr, tag_t tags[], bool reset) {
 	tag_t src_tag[] = R32TAG(gpr);
@@ -39,6 +44,43 @@ void getMemoryTaints(ADDRINT addr, tag_t* tags, UINT32 size) {
 	for (UINT32 i = 0; i < size; ++i) {
 		tags[i] = tagmap_getb(addr + i);
 	}
+}
+
+/*
+Function used to initialize the logger for the shadow call stack
+*/
+void initLoggerShadowCallStack(std::string fileName) {
+	// Check if file name is empty or null
+	if (fileName.empty()) {
+		fileName = "callstack.log";
+	}
+	// Save the file name in a global variable
+	m_logCallStackFileName = fileName;
+	// Create or open the file
+	if (m_logCallStackFile.is_open()) {
+		return;
+	}
+	// Otherwise, open the file and return the status
+	else {
+		m_logCallStackFile.open(m_logCallStackFileName.c_str());
+	}
+}
+
+/*
+Function used to initialize the logger for the shadow call stack
+*/
+void logShadowCallStack(thread_ctx_t* thread_ctx, callStackThreadP callStackThread) {
+	ADDRINT hashTop = (*(callStackThread->callStack))[callStackThread->callStackTop - 1].hashID;
+	std::stringstream ss;
+	ss << "- " << std::hex << hashTop << "\n";
+	for (int i = 0; i < callStackThread->callStackTop; i++) {
+		callStackFrame frameIdx = (*(callStackThread->callStack))[i];
+		ss << frameIdx.calladdr << " " <<
+			frameIdx.retaddr << " " <<
+			frameIdx.spaddr << "\n";
+	}
+	m_logCallStackFile << ss.str().c_str() << std::endl;
+	m_logCallStackFile.flush();
 }
 
 /*
@@ -82,7 +124,6 @@ void clearTaintMemory(ADDRINT addr, UINT32 size) {
 		tagmap_setb_with_tag(addr + i, t);
 	}
 }
-
 
 /*
 Check which operands are tainted using the thread-context variables TTINFO(firstOperandTainted) and TTINFO(secondOperandTainted)
@@ -155,11 +196,13 @@ condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size, BOOL is
 	// Call stack hash analysis
 	ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 	std::map<ADDRINT, bool>::iterator found;
-	found = hash_mapping.find(hash);
-	//If the hash was never encountered
-	if (found == hash_mapping.end()) {
-		//Insert it into the map
-		hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+	found = hashMapping.find(hash);
+	// If the hash was never encountered
+	if (found == hashMapping.end()) {
+		// Insert it into the map
+		hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		// Log the shadow call stack
+		logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 	}
 	// Check if we have an offending instruction and if program code
 	if (TTINFO(offendingInstruction) != 0 && itree_search(gs->dllRangeITree, addr) == NULL) {
@@ -186,11 +229,13 @@ static void PIN_FAST_ANALYSIS_CALL
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -249,11 +294,13 @@ mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}		
 		//Extracting memory content
 		ADDRINT memContent;
@@ -315,11 +362,13 @@ reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg_op0,
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}			
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -377,11 +426,13 @@ reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UI
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}		
 		// Extracting memory content
 		ADDRINT memContent; 
@@ -443,11 +494,13 @@ mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}				
 		//Extracting memory content
 		ADDRINT memContent; 
@@ -509,11 +562,13 @@ reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UINT32
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}		
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {
@@ -571,11 +626,13 @@ mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memAddre
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}	
 		//Extracting memory content
 		ADDRINT memContent;
@@ -637,11 +694,13 @@ alert(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size) {
 		// Call stack hash analysis
 		ADDRINT hash = (*(thread_ctx->ttinfo.shadowStackThread->callStack))[thread_ctx->ttinfo.shadowStackThread->callStackTop - 1].hashID;
 		std::map<ADDRINT, bool>::iterator found;
-		found = hash_mapping.find(hash);
-		//If the hash was never encountered
-		if (found == hash_mapping.end()) {
-			//Insert it into the map
-			hash_mapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+		found = hashMapping.find(hash);
+		// If the hash was never encountered
+		if (found == hashMapping.end()) {
+			// Insert it into the map
+			hashMapping.insert(std::pair<ADDRINT, bool>(hash, 0));
+			// Log the shadow call stack
+			logShadowCallStack(thread_ctx, thread_ctx->ttinfo.shadowStackThread);
 		}			
 		// If the instruction is different from a mov, save it as a offending instruction (possible instruction which affected a branch execution)
 		if (strcmp("mov", ins.c_str())) {

@@ -17,6 +17,7 @@ using std::cerr;
 
 extern REG thread_ctx_ptr;
 
+void initLoggerShadowCallStack(std::string fileName);
 void instrumentForTaintCheck(INS ins);
 void logHookId(CONTEXT* ctx, std::string hook_name, ADDRINT start_addr, UINT32 size);
 void addTaintMemory(CONTEXT* ctx, ADDRINT addr, UINT32 size, tag_t tag, bool reset, std::string apiName);
