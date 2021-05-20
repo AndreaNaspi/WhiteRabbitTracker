@@ -235,7 +235,7 @@ def addrColourToChunksRoot(definitiveChunksRoot, addrCols):
 			res.colour = col
 def main():
 	# sanity check
-	if len(sys.argv) != 2:
+	if len(sys.argv) != 3:
 		print("Usage: python offlineAnalysis.py PATH_TO_TAINTED_LOGS PATH_TO_CALL_STACK_LOG (e.g. offlineAnalysis.py C:\\Pin315\\taint\\ C:\\Pin315\\callstack.log)")
 		return -1
 
