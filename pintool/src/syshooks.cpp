@@ -507,7 +507,7 @@ namespace SYSHOOKS {
 			if (path1 != NULL && path1->Buffer != NULL) {
 				GET_STR_TO_UPPER(path1->Buffer, value, PATH_BUFSIZE);
 				if (HiddenElements::shouldHideWindowStr(value)) {
-					char logName[256] = "FindWindow ";
+					char logName[256] = "NtUserFindWindow ";
 					strcat(logName, value);
 					logModule->logBypass(logName);
 					ADDRINT _eax = 0;
@@ -520,7 +520,7 @@ namespace SYSHOOKS {
 				memset(value, 0, PATH_BUFSIZE);
 				GET_STR_TO_UPPER(path2->Buffer, value, PATH_BUFSIZE);
 				if (HiddenElements::shouldHideWindowStr(value)) {
-					char logName[256] = "FindWindow ";
+					char logName[256] = "NtUserFindWindow ";
 					strcat(logName, value);
 					logModule->logBypass(logName);					
 					ADDRINT _eax = 0;
