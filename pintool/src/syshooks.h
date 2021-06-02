@@ -18,6 +18,7 @@
 #define BP_FAKEPROCESS              "abc.exe"
 #define BP_FAKEPROCESSW             L"abc.exe"
 #define STR_QSI				        "a"
+#define WSTR_REGKEYORVAL	        L"a"
 #define WSTR_CREATEFILE		        L"a"
 #define WSTR_FILE			        L"a"
 #define PATH_BUFSIZE	            512
@@ -33,6 +34,8 @@ namespace SYSHOOKS {
 	VOID NtCreateFile_entry(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
 	VOID NtCreateFile_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 	VOID NtOpenKey_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
+	VOID NtEnumerateKey_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
+	VOID NtQueryValueKey_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);
 	VOID NtQueryInformationProcess_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
 	VOID NtQuerySystemInformation_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std);
 	VOID NtQueryAttributesFile_entry(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std);

@@ -30,6 +30,8 @@ addTaintRegister(thread_ctx, taint_gpr, _tags, true); \
 // Windows syscalls
 #define TAINT_NTCREATEFILE           0
 #define TAINT_NTOPENKEY              0
+#define TAINT_NTENUMERATEKEY         0
+#define TAINT_NTQUERYVALUEKEY        0
 #define TAINT_NTQIP_DEBUGFLAG        0
 #define TAINT_NTQIP_DEBUGOBJECT      0
 #define TAINT_NTQSI_PROCESSINFO      1

@@ -132,6 +132,63 @@ namespace SYSHOOKS {
 	}
 
 	/* ===================================================================== */
+	/* Handle the NtEnumerateKey API (registry access)                       */
+	/* ===================================================================== */
+	VOID NtEnumerateKey_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		KEY_INFORMATION_CLASS cl = (KEY_INFORMATION_CLASS)sc->arg2;
+		if (cl == KeyBasicInformation) {
+			PKEY_BASIC_INFORMATION str = (PKEY_BASIC_INFORMATION)sc->arg3;
+			char value[PATH_BUFSIZE];
+			GET_STR_TO_UPPER(str->Name, value, PATH_BUFSIZE);
+			if (HiddenElements::shouldHideReqQueryValueStr(value)) {
+				if (_knobBypass) {
+					char logName[256] = "NtEnumerateKey ";
+					strcat(logName, value);
+					logModule->logBypass(logName);
+					for (W::USHORT i = 0; i < str->NameLength - 1; i += 2) {
+						PIN_SafeCopy((char*)str->Name + i, WSTR_REGKEYORVAL, sizeof(wchar_t));
+					}
+				}
+#if TAINT_NTENUMERATEKEY
+				// High false positive rate, taint only suspicious registry access
+				logHookId(ctx, "NtEnumerateKey", (ADDRINT)str->Name, str->NameLength);
+				addTaintMemory(ctx, (ADDRINT)str->Name, str->NameLength, TAINT_COLOR_1, true, "NtEnumerateKey");
+#endif
+			}
+		}
+	}
+
+
+	/* ===================================================================== */
+	/* Handle the NtQueryValueKey API (registry access)                      */
+	/* ===================================================================== */
+	VOID NtQueryValueKey_exit(syscall_t* sc, CONTEXT* ctx, SYSCALL_STANDARD std) {
+		if ((KEY_VALUE_INFORMATION_CLASS)sc->arg2 == KeyValuePartialInformation) {
+			W::LPVOID str = (W::LPVOID)sc->arg3;
+			W::PUNICODE_STRING query = (W::PUNICODE_STRING)sc->arg1;
+			if (query->Buffer != NULL) {
+				char value[PATH_BUFSIZE];
+				GET_STR_TO_UPPER(query->Buffer, value, PATH_BUFSIZE);
+				if (HiddenElements::shouldHideReqQueryValueStr(value)) {
+					if (_knobBypass) {
+						char logName[256] = "NtQueryValueKey ";
+						strcat(logName, value);
+						logModule->logBypass(logName);
+						for (W::USHORT i = 0; i < query->Length * 2 - 1; i += 2) {
+							PIN_SafeCopy((char*)str + i, WSTR_REGKEYORVAL, sizeof(wchar_t));
+						}
+					} 
+#if TAINT_NTQUERYVALUEKEY
+					// High false positive rate, taint only suspicious registry access
+					logHookId(ctx, "NtQueryValueKey", (ADDRINT)str, query->Length * 2 - 1);
+					addTaintMemory(ctx, (ADDRINT)str, query->Length * 2 - 1, TAINT_COLOR_1, true, "NtQueryValueKey");
+#endif
+				}
+			}
+		}
+	}
+
+	/* ===================================================================== */
 	/* Handle the NtQueryInformationProcess API (process information access) */
 	/* ===================================================================== */
 	VOID NtQueryInformationProcess_exit(syscall_t * sc, CONTEXT * ctx, SYSCALL_STANDARD std) {

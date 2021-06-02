@@ -241,9 +241,11 @@ namespace SYSHOOKING {
 		// Handle the NtCreateFile API (Virtualbox/VMware files access) 
 		sysEntryHooks[lookupIndex("NtCreateFile")] = &SYSHOOKS::NtCreateFile_entry;
 		sysExitHooks[lookupIndex("NtCreateFile")] = &SYSHOOKS::NtCreateFile_exit;
-		// Handle the NtOpenKey API (registry access)
+		// Handle the NtOpenKey and NtEnumerateKey APIs (registry access)
 		sysExitHooks[lookupIndex("NtOpenKey")] = &SYSHOOKS::NtOpenKey_exit;
 		sysExitHooks[lookupIndex("NtOpenKeyEx")] = &SYSHOOKS::NtOpenKey_exit;
+		sysExitHooks[lookupIndex("NtEnumerateKey")] = &SYSHOOKS::NtEnumerateKey_exit;
+		sysExitHooks[lookupIndex("NtQueryValueKey")] = &SYSHOOKS::NtQueryValueKey_exit;
 		// Handle the NtQueryInformationProcess API (process information access)
 		sysExitHooks[lookupIndex("NtQueryInformationProcess")] = &SYSHOOKS::NtQueryInformationProcess_exit;
 		// Handle the NtQuerySystemInformation API (firmware table access)
