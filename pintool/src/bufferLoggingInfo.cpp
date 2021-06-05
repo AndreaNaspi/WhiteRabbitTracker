@@ -117,34 +117,61 @@ VOID threadExitLogger(THREADID tid, pintool_tls* tdata) {
 		fclose(tdata->logfileTaintedMemory);
 }
 
+#if USE_SCZTOON
 VOID logAlert(pintool_tls* tdata, const char* fmt, ...) {
 	// Check if the buffer is full
 	if (scztoonIsFull(tdata)) {
 		scztoonToDisk(tdata);
 	}
-	// Write the current alaert to the buffer
+	// Write the current alert to the buffer
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(tdata->scztoon + tdata->drops, SIZE_SCZ, fmt, args);
+	fwrite(tdata->scztoon, tdata->drops, 1, tdata->logfile);
 	va_end(args);
 	if (ret > 0) 
 		tdata->drops += ret;
 }
+#else
+VOID logAlert(pintool_tls* tdata, const char* fmt, ...) {
+	if (!tdata->logfile) 
+		return; 
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(tdata->logfile, fmt, args);
+	va_end(args);
+	fflush(tdata->logfile);
+}
+#endif
 
+#if USE_SCZTOON
 VOID logInstruction(pintool_tls* tdata, const char* fmt, ...) {
 	// Check if the buffer is full
 	if (scztoonInstructionIsFull(tdata)) {
 		scztoonInstructionToDisk(tdata);
 	}
-	// Write the current alaert to the buffer
+	// Write the current instruction to the buffer
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(tdata->scztoonInstruction + tdata->dropsInstruction, SIZE_SCZ, fmt, args);
+	fwrite(tdata->scztoonInstruction, tdata->dropsInstruction, 1, tdata->logfileInstruction);
 	va_end(args);
 	if (ret > 0)
 		tdata->dropsInstruction += ret;
 }
+#else 
+VOID logInstruction(pintool_tls* tdata, const char* fmt, ...) {
+	if (!tdata->logfileInstruction)
+		return;
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(tdata->logfileInstruction, fmt, args);
+	va_end(args);
+	fflush(tdata->logfileInstruction);
+}
+#endif
 
+#if USE_SCZTOON
 VOID logTaintedMemoryArea(pintool_tls* tdata, const char* fmt, ...) {
 	// Check if the buffer is full
 	if (scztoonTaintedMemorynIsFull(tdata)) {
@@ -154,7 +181,19 @@ VOID logTaintedMemoryArea(pintool_tls* tdata, const char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(tdata->scztoonTaintedMemory + tdata->dropsTaintedMemory, SIZE_SCZ, fmt, args);
+	fwrite(tdata->scztoonTaintedMemory, tdata->dropsTaintedMemory, 1, tdata->logfileTaintedMemory);
 	va_end(args);
 	if (ret > 0)
 		tdata->dropsTaintedMemory += ret;
 }
+#else 
+VOID logTaintedMemoryArea(pintool_tls* tdata, const char* fmt, ...) {
+	if (!tdata->logfileTaintedMemory)
+		return;
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(tdata->logfileTaintedMemory, fmt, args);
+	va_end(args);
+	fflush(tdata->logfileTaintedMemory);
+}
+#endif
