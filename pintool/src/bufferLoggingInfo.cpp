@@ -127,7 +127,6 @@ VOID logAlert(pintool_tls* tdata, const char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(tdata->scztoon + tdata->drops, SIZE_SCZ, fmt, args);
-	fwrite(tdata->scztoon, tdata->drops, 1, tdata->logfile);
 	va_end(args);
 	if (ret > 0) 
 		tdata->drops += ret;
@@ -154,7 +153,6 @@ VOID logInstruction(pintool_tls* tdata, const char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(tdata->scztoonInstruction + tdata->dropsInstruction, SIZE_SCZ, fmt, args);
-	fwrite(tdata->scztoonInstruction, tdata->dropsInstruction, 1, tdata->logfileInstruction);
 	va_end(args);
 	if (ret > 0)
 		tdata->dropsInstruction += ret;
@@ -181,7 +179,6 @@ VOID logTaintedMemoryArea(pintool_tls* tdata, const char* fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	int ret = vsnprintf(tdata->scztoonTaintedMemory + tdata->dropsTaintedMemory, SIZE_SCZ, fmt, args);
-	fwrite(tdata->scztoonTaintedMemory, tdata->dropsTaintedMemory, 1, tdata->logfileTaintedMemory);
 	va_end(args);
 	if (ret > 0)
 		tdata->dropsTaintedMemory += ret;
