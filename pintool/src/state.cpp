@@ -11,6 +11,9 @@ State::apiOutputs  _apiOutputs;
 /* ===================================================================== */
 BOOL _knobApiTracing;
 BOOL _knobBypass;
+BOOL _knobLeak;
+BOOL _knobAlertSystemCode;
+int _alertApiTracingCounter;
 
 namespace State {
 	/* ===================================================================== */
@@ -20,6 +23,7 @@ namespace State {
 		// Initialize memory portion
 		memset(&_globalState, 0, sizeof(globalState));
 		memset(&_apiOutputs, 0, sizeof(apiOutputs));
+		_alertApiTracingCounter = 0;
 
 		// Useful time informations (magic numbers)
 		State::globalState* gs = State::getGlobalState();

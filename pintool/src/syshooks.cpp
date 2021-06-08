@@ -379,7 +379,7 @@ namespace SYSHOOKS {
 						memcmp(info->TableBuffer + i, vbox3, sizeVbox3) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape2, sizeof(escape2));
 					}
-					else if (memcmp(info->TableBuffer + i, vbox4, sizeVbox4) == 0) {
+					else if (memcmp(info->TableBuffer + i, vbox4, sizeVbox4) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape3, sizeof(escape3));
 					}
 				}
@@ -397,13 +397,10 @@ namespace SYSHOOKS {
 					if (memcmp(info->TableBuffer + i, vmware, vmwareSize) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape4, sizeof(escape4));
 					}
-					else if (memcmp(info->TableBuffer + i, vmware2, vmwareSize2) == 0) {
+					else if (memcmp(info->TableBuffer + i, vmware2, vmwareSize2) == 0 && _knobBypass) {
 						PIN_SafeCopy(info->TableBuffer + i, escape5, sizeof(escape5));
 					}
 				}
-
-				// Bypass a possible signature detection
-				PIN_SetContextReg(ctx, REG_EAX, 0);
 
 				// Taint the table buffer
 #if TAINT_NTQSI_FIRMWAREINFO

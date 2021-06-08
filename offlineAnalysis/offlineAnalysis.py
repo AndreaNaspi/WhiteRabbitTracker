@@ -266,7 +266,6 @@ def main():
 		- value: list of addresses consumed by these consumers
 	'''
 	consumers = getDictConsumers(directoryTaintedLogs)
-
 	'''
 	Create an interval tree that contains the tainted memory areas during the program execution
 	'''

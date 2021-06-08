@@ -29,13 +29,10 @@ void LoggingInfo::logCall(const ADDRINT prevModuleBase, const ADDRINT prevAddr, 
 	} 
 	// Write the RVA address into the output file 
 	ADDRINT rva = (isRVA) ? prevAddr : prevAddr - prevModuleBase;
-	if (!isRVA) {
-		m_traceFile << "> " << prevModuleBase << "+";
-	}
-	m_traceFile << std::hex << rva << DELIMITER;
+	m_traceFile << "-- " << std::hex << rva << DELIMITER;
 
 	// Extract the DLL name and write it into the output file (substitute with get_dll_name(module) for a short log)
-	m_traceFile << module;
+	m_traceFile << get_dll_name(module) << ".dll";
 
 	// If the function name exists, write it into the output file
 	if (func.length() > 0) {
@@ -60,6 +57,7 @@ void LoggingInfo::logCall(const ADDRINT prevBase, const ADDRINT prevAddr, const 
 	}
 	const ADDRINT rva = callAddr - calledPageBase;
 	m_traceFile 
+		<< "-- "
 		<< std::hex << prevAddr
 		<< DELIMITER
 		<< "called: ?? [" << calledPageBase << "+" << rva << "]"
@@ -114,7 +112,8 @@ void LoggingInfo::logException(const ADDRINT addrFrom, std::string reason) {
 	}
 	// Write the new exception with relative previous address
 	m_traceFile
-		<< std::hex << addrFrom
+		<< "[EXCEPTION] " << 
+		std::hex << addrFrom
 		<< DELIMITER
 		<< "exception: [" << reason << "]"
 		<< std::endl;
@@ -134,6 +133,25 @@ void LoggingInfo::logBypass(std::string bypassIdentifier) {
 	m_traceFile
 		<< "[BYPASS] "
 		<< bypassIdentifier
+		<< std::endl;
+	// Flush the file
+	m_traceFile.flush();
+}
+
+/* ===================================================================== */
+/* Log a new tainted branch                                              */
+/* ===================================================================== */
+void LoggingInfo::logTaintedBranch(ADDRINT addr, ADDRINT targetAddress, std::string ins, ADDRINT hash) {
+	// Check if the file exist
+	if (!createFile()) {
+		return;
+	}
+	char buf[1024]; 
+	sprintf(buf, "0x%08x %s 0x%08x", addr, ins.c_str(), hash);
+	// Write the new tainted branch with the relative information
+	m_traceFile
+		<< "[TAINTED_BRANCH] "
+		<< std::string(buf)
 		<< std::endl;
 	// Flush the file
 	m_traceFile.flush();

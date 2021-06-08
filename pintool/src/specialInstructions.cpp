@@ -1,6 +1,9 @@
 #include "specialInstructions.h"
 #include "taint.h"
 
+// Spill a register in Pin for keeping a shadow FPU IP
+REG spilledFpu;
+
 /* ============================================================================= */
 /* Define macro to taint a register using thread_ctx_ptr and GPR from libdft     */
 /* ============================================================================= */
@@ -34,6 +37,13 @@ SpecialInstructionsHandler* SpecialInstructionsHandler::getInstance() {
 		instance = new SpecialInstructionsHandler();
 	}
 	return instance;
+}
+
+/* ===================================================================== */
+/* Utility function to initialize the FPU claim tool register            */
+/* ===================================================================== */
+void SpecialInstructionsHandler::fpuInit() {
+	spilledFpu = PIN_ClaimToolRegister();
 }
 
 /* ===================================================================== */
@@ -127,6 +137,28 @@ void SpecialInstructionsHandler::checkSpecialInstruction(INS ins) {
 			IARG_CONTEXT,
 			IARG_ADDRINT, curEip,
 			IARG_END);
+	}
+	// FPU leak evasion
+	else if (_knobLeak && INS_Category(ins) == XED_CATEGORY_X87_ALU) {
+		if (disassembled_ins.find("fwait") != string::npos)
+			return;
+
+		if (disassembled_ins.find("fnstenv") != string::npos || disassembled_ins.find("fstenv") != string::npos ||
+			disassembled_ins.find("fsave") != string::npos || disassembled_ins.find("fnsave") != string::npos ||
+			disassembled_ins.find("fxsave") != string::npos) {
+			INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::FPU_UpdateFPUStatus,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_REG_VALUE, spilledFpu,
+				IARG_MEMORYOP_EA, 0,
+				IARG_END);
+		}
+		else {
+			INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR)SpecialInstructionsHandler::FPU_UpdateLastFpuIns,
+				IARG_FAST_ANALYSIS_CALL,
+				IARG_INST_PTR,
+				IARG_RETURN_REGS, spilledFpu,
+				IARG_END);
+		}
 	}
 	// If "in eax, dx" instruction (log and alter values to avoid VMWare detection)
 	else if (specialInstructionsHandlerInfo->isStrEqualI(INS_Mnemonic(ins), "in eax, dx") || disassembled_ins.find("in eax, dx") != std::string::npos) {
@@ -283,6 +315,24 @@ void SpecialInstructionsHandler::Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_ei
 		eh->setExceptionToExecute(NTSTATUS_STATUS_BREAKPOINT);
 		classHandler->logInfo->logBypass("INT 0X2D");
 	}
+}
+
+/* ===================================================================== */
+/* Function to update the FPU structure in order to fake the address of  */
+/* the last executed FPU instruction                                     */
+/* ===================================================================== */
+void SpecialInstructionsHandler::FPU_UpdateFPUStatus(ADDRINT regValue, ADDRINT op) {
+
+	PIN_SafeCopy((VOID*)(op + FPUIPOFFSET), &regValue, sizeof(ADDRINT));
+
+}
+
+/* ===================================================================== */
+/* Function to return a fake instruction address for each FPU instruction*/
+/* (currently we return the spilledFPU register from the caller)         */
+/* ===================================================================== */
+ADDRINT SpecialInstructionsHandler::FPU_UpdateLastFpuIns(ADDRINT addr) {
+	return addr;
 }
 
 /* ===================================================================== */

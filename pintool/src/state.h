@@ -4,9 +4,13 @@
 #include "pin.H" 
 #include "winheaders.h"
 #include "itree.h"
+#include "LoggingInfo.h"
 
 extern BOOL _knobApiTracing;
 extern BOOL _knobBypass;
+extern BOOL _knobLeak;
+extern BOOL _knobAlertSystemCode;
+extern int _alertApiTracingCounter;
 
 namespace State {
 
@@ -38,8 +42,7 @@ namespace State {
 		itreenode_t* dllRangeITree;
 		std::vector<monitoredDLL> dllExports;
 		ADDRINT cpuid_eax;
-		ADDRINT* pointerToLpidProcess;
-		ADDRINT* pointerToBytesLpidProcess;
+		LoggingInfo* logInfo;
 	};
 
 	/* ===================================================================== */

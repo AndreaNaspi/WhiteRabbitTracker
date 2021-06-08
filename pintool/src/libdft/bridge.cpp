@@ -208,6 +208,8 @@ condBranchAnalysis(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size, BOOL is
 		// Log the tainted instruction using a buffered logger
 		logAlert(tdata, "%s; 0x%08x 0x%08x %s 0x%08x\n", alertType.c_str(), addr, targetAddress, ins.c_str(), hash);
 		logInstruction(tdata, "%s; 0x%08x 0x%08x %s 0x%08x\n", alertType.c_str(), addr, targetAddress, instruction.c_str(), hash);
+		gs->logInfo->logTaintedBranch(addr, targetAddress, instruction, hash);
+		_alertApiTracingCounter = API_AFTER_TAINTED_BR;
 		// Reset the offending instruction
 		TTINFO(offendingInstruction) = 0;
 	}
@@ -248,7 +250,7 @@ static void PIN_FAST_ANALYSIS_CALL
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -317,7 +319,7 @@ mem_imm_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -381,7 +383,7 @@ reg_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg_op0,
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -449,7 +451,7 @@ reg_mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UI
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -517,7 +519,7 @@ mem_reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memA
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -581,7 +583,7 @@ reg_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, REG reg0, UINT32
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -649,7 +651,7 @@ mem_alert(thread_ctx_t* thread_ctx, ADDRINT addr, ADDRINT size, ADDRINT memAddre
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
@@ -713,7 +715,7 @@ alert(thread_ctx_t *thread_ctx, ADDRINT addr, ADDRINT size) {
 		// If system code, log the tainted instruction one time
 		itreenode_t* currentNode = itree_search(gs->dllRangeITree, addr);
 		if (currentNode != NULL) {
-			if (TTINFO(logTaintedSystemCode)) {
+			if (TTINFO(logTaintedSystemCode) && _knobAlertSystemCode) {
 				TTINFO(logTaintedSystemCode) = 0;
 				for (int i = 0; i < gs->dllExports.size(); i++) {
 					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {

@@ -65,6 +65,10 @@ public:
 	/* ===================================================================== */
 	void logBypass(std::string bypassIdentifier);
 	/* ===================================================================== */
+	/* Log a new tainted branch                                              */
+	/* ===================================================================== */
+	void logTaintedBranch(ADDRINT addr, ADDRINT targetAddress, std::string ins, ADDRINT hash);
+	/* ===================================================================== */
 	/* Utility function to extract a dll name from module name (parsing)     */
 	/* ===================================================================== */
 	std::string get_dll_name(const std::string& str);

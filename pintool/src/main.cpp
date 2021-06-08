@@ -30,8 +30,10 @@ TLS_KEY tls_key = INVALID_TLS_KEY;
 /* ================================================================== */
 
 // Define knobs
-KNOB<BOOL> knobApiTracing(KNOB_MODE_WRITEONCE, "pintool", "trace", "false", "Enable API tracing at instruction level (high load)");
-KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "true", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection");
+KNOB<BOOL> knobApiTracing(KNOB_MODE_WRITEONCE, "pintool", "trace", "false", "Enable API tracing at instruction level after each tainted conditional branch (high load)");
+KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "true", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection (enabled by default)");
+KNOB <BOOL> knobLeak(KNOB_MODE_WRITEONCE, "pintool", "leak", "false", "Enable bypass to avoid leaks of real EIP through FPU instructions (disabled by default)");
+KNOB<BOOL> knobSystemCodeAlert(KNOB_MODE_WRITEONCE, "pintool", "alertSystemCode", "true", "Enable taint alert for tainted system code (enabled by default)");
 
 /* ============================================================================= */
 /* Define macro to check the instruction address and check if is program code    */
@@ -78,7 +80,7 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 			specialInstructionsHandlerInfo->checkSpecialInstruction(ins);
 			if (_knobApiTracing) {
 				// If "control flow" instruction (branch, call, ret) OR "far jump" instruction (FAR_JMP in Windows with IA32 is sometimes a syscall)
-				if ((INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
+				if (_alertApiTracingCounter > 0 && (INS_IsControlFlow(ins) || INS_IsFarJump(ins))) {
 					// Insert a call to "saveTransitions" (AFUNPTR) relative to instruction "ins"
 					// parameters: IARG_INST_PTR (address of instrumented instruction), IARG_BRANCH_TARGET_ADDR (target address of the branch instruction)
 					// hint: remember to use IARG_END (end argument list)!!
@@ -95,6 +97,25 @@ VOID InstrumentInstruction(TRACE trace, VOID *v) {
 			}
 		}
 	}
+}
+
+/* ===================================================================== */
+/* Utility function to search the nearest address in the export map of   */
+/* the current DLL to find which system API is called                    */
+/* ===================================================================== */
+W::DWORD searchNearestAddressExportMap(std::map<W::DWORD, std::string> exportsMap, ADDRINT addr) {
+	W::DWORD currentAddr;
+	for (const auto& p : exportsMap) {
+		if (!currentAddr) {
+			currentAddr = p.first;
+		}
+		else {
+			if (std::abs((long)(p.first - addr)) < std::abs((long)(currentAddr - addr))) {
+				currentAddr = p.first;
+			}
+		}
+	}
+	return currentAddr;
 }
 
 /* ===================================================================== */
@@ -115,7 +136,10 @@ VOID SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo, ADDRINT cur_e
 /* Parameters: addrFrom (address of instruction), addrTo (target address)*/
 /* ===================================================================== */
 VOID _SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo) {
-	// Last shellcode to which the transition got redirected:
+	// Get access to global state variables
+	State::globalState* gs = State::getGlobalState();
+
+	// Last shellcode to which the transition got redirected
 	static ADDRINT lastShellc = UNKNOWN_ADDR;
 
 	// Variables to check caller/target process
@@ -132,22 +156,31 @@ VOID _SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo) {
 
 	// [API CALL TRACING]
 	// Is it a transition FROM THE TRACED MODULE TO A FOREIGN MODULE? (my process is calling the instruction and pointing to a foreign module) 
+	std::map<W::DWORD, std::string> exportsMap;
+	std::string dllName;
+	W::DWORD nearestAddressExportsMap;
 	if (isCallerMy && !isTargetMy) {
 		// Get relative virtual address (address - get_base(address)) of the foreign module
 		ADDRINT RvaFrom = addr_to_rva(addrFrom);
 		// Check if the image of the foreign module is VALID
 		if (IMG_Valid(targetModule)) {
 			const std::string func = get_func_at(addrTo);
-			// Get DLL name (Image name) from the Pin APIs
-			const std::string dll_name = IMG_Name(targetModule);
+			// Get DLL name (Image name) from the Pin APIs and the interval tree
+			itreenode_t* currentNode = itree_search(gs->dllRangeITree, addrTo);
+			for (int i = 0; i < gs->dllExports.size(); i++) {
+				if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+					exportsMap = gs->dllExports[i].exports;
+					dllName = std::string((char*)gs->dllExports[i].dllPath);
+					nearestAddressExportsMap = searchNearestAddressExportMap(exportsMap, addrTo);
+				}
+			}
 			// Write to log file the API call with dll name and function name
-			logInfo.logCall(0, RvaFrom, true, dll_name, func);
+			logInfo.logCall(0, RvaFrom, true, dllName, (exportsMap)[nearestAddressExportsMap].c_str());
+			_alertApiTracingCounter -= 1;
 		}
 		else {
 			// Image not valid (no mapped module), let's save the beginning of this area as possible shellcode
 			lastShellc = pageTo;
-			// Write to log file the call to a not valid target module (save the beginning of this area as possible shellcode)
-			logInfo.logCall(0, RvaFrom, lastShellc, addrTo);
 		}
 	}
 	// [SHELLCODE API CALL TRACING]
@@ -159,37 +192,21 @@ VOID _SaveTransitions(const ADDRINT addrFrom, const ADDRINT addrTo) {
 			// If the target of the shellcode is valid continue
 			if (IMG_Valid(targetModule)) {
 				// Log the API call of the called shellcode (get function name and dll name)
-				const std::string func = get_func_at(addrTo);
-				const std::string dll_name = IMG_Name(targetModule);
-				logInfo.logCall(callerPage, addrFrom, false, dll_name, func);
+				itreenode_t* currentNode = itree_search(gs->dllRangeITree, addrTo);
+				for (int i = 0; i < gs->dllExports.size(); i++) {
+					if (strcmp((char*)gs->dllExports[i].dllPath, (char*)currentNode->data) == 0) {
+						exportsMap = gs->dllExports[i].exports;
+						dllName = std::string((char*)gs->dllExports[i].dllPath);
+						nearestAddressExportsMap = searchNearestAddressExportMap(exportsMap, addrTo);
+					}
+				}
+				logInfo.logCall(callerPage, addrFrom, false, dllName, (exportsMap)[nearestAddressExportsMap].c_str());
+				_alertApiTracingCounter -= 1;
 			}
 			// Otherwise, set the variable lastShellc if the mode is recursive (shellcode inside shellcode)
 			else if (pageFrom != pageTo) {
 				lastShellc = pageTo;
 			}
-		}
-	}
-	// [SECTION TRACING]
-	// Is the address WITHIN THE TRACED MODULE? 
-	if (isTargetMy) {
-		// Get relative virtual address (address - get_base(address)) of the target address
-		ADDRINT rva = addr_to_rva(addrTo); 
-		// Transition from one section to another?
-		if (pInfo.updateTracedModuleSection(rva)) {
-			// Get the target section
-			const s_module* sec = pInfo.getSecByAddr(rva);
-			// Get the section name
-			std::string curr_name = (sec) ? sec->name : "?";
-			// New section called detected
-			if (isCallerMy) {
-				// Convert to RVA
-				ADDRINT rvaFrom = addr_to_rva(addrFrom); 
-				const s_module* prev_sec = pInfo.getSecByAddr(rvaFrom);
-				std::string prev_name = (prev_sec) ? prev_sec->name : "?";
-				logInfo.logNewSectionCalled(rvaFrom, prev_name, curr_name);
-			}
-			// Otherwise, section change detected
-			logInfo.logSectionChange(rva, curr_name);
 		}
 	}
 }
@@ -336,10 +353,14 @@ int main(int argc, char * argv[]) {
 
 	// Setup knob variables
 	_knobBypass = knobBypass.Value();
+	_knobLeak = knobLeak.Value();
 	_knobApiTracing = knobApiTracing.Value();
+	_knobAlertSystemCode = knobSystemCodeAlert.Value();
 
 	// Initialize global state informations
 	State::init();
+	State::globalState* gs = State::getGlobalState();
+	gs->logInfo = &logInfo;
 
 	// Initialize elements to be hidden
 	HiddenElements::initializeHiddenStuff();
@@ -382,6 +403,10 @@ int main(int argc, char * argv[]) {
 
 	// Register system hooking
 	SYSHOOKING::Init(&logInfo);
+
+	// Initialize FPU leak evasions
+	if(_knobLeak)
+		SpecialInstructionsHandler::fpuInit();
 
 	// Register function to be called BEFORE every TRACE (analysis routine for API TRACING, SHELLCODE TRACING AND SECTION TRACING)
 	TRACE_AddInstrumentFunction(InstrumentInstruction, (VOID*)0);

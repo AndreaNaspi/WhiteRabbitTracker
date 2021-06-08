@@ -18,6 +18,7 @@
 
 #define MAX_CPUID 10
 #define MAX_RDTSC 5
+#define FPUIPOFFSET 0xc
 
 class SpecialInstructionsHandler
 {
@@ -38,6 +39,11 @@ public:
 	/* singleton getInstance function                                        */
 	/* ===================================================================== */
 	static SpecialInstructionsHandler* getInstance();
+
+	/* ===================================================================== */
+	/* Utility function to initialize the FPU claim tool register            */
+	/* ===================================================================== */
+	static void fpuInit();
 
 	/* ===================================================================== */
 	/* Function to check for specific special instruction and insert handlers*/
@@ -64,6 +70,18 @@ public:
 	/* Function to handle the int 2d and log the instruction                 */
 	/* ===================================================================== */
 	static void Int2dCalled(const CONTEXT* ctxt, ADDRINT cur_eip);
+
+	/* ===================================================================== */
+	/* Function to update the FPU structure in order to fake the address of  */
+	/* the last executed FPU instruction                                     */
+	/* ===================================================================== */
+	static void FPU_UpdateFPUStatus(ADDRINT regValue, ADDRINT op);
+
+	/* ===================================================================== */
+	/* Function to return a fake instruction address for each FPU instruction*/
+	/* (currently we return the spilledFPU register from the caller)         */
+	/* ===================================================================== */
+	static ADDRINT FPU_UpdateLastFpuIns(ADDRINT addr);
 
 	/* ===================================================================== */
 	/* Function to handle and log the 'in eax, dx' instruction               */

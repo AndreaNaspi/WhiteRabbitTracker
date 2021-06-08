@@ -4,11 +4,12 @@
 #include <fstream>
 #include <intrin.h>
 
-#define LOGPATH "C:\\Pin315\\"
-#define LOGPATH_TAINT "C:\\Pin315\\taint\\"
-#define USE_SCZTOON     1
-#define SIZE_SCZTOON	5*1024*1024	// 5 MB (reduce with many threads?)
-#define SIZE_SCZ		2048		// max bytes written at a time
+#define LOGPATH               "C:\\Pin315\\"
+#define LOGPATH_TAINT         "C:\\Pin315\\taint\\"
+#define USE_SCZTOON           1
+#define SIZE_SCZTOON	      5*1024*1024	// 5 MB (reduce with many threads?)
+#define SIZE_SCZ		      2048		// max bytes written at a time
+#define API_AFTER_TAINTED_BR  10 // number of tainted API to log after a tainted branch
 
 namespace W {
 #include "windows.h"
