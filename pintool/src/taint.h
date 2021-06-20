@@ -3,12 +3,12 @@
 /* ===================================================================== */
 #define TAINT_COLOR_1 0x01
 #define TAINT_COLOR_2 0x02
-#define TAINT_COLOR_3 0x03
-#define TAINT_COLOR_4 0x04
-#define TAINT_COLOR_5 0x05
-#define TAINT_COLOR_6 0x06
-#define TAINT_COLOR_7 0x07
-#define TAINT_COLOR_8 0x08
+#define TAINT_COLOR_3 0x04
+#define TAINT_COLOR_4 0x08
+#define TAINT_COLOR_5 0x10
+#define TAINT_COLOR_6 0x20
+#define TAINT_COLOR_7 0x40
+#define TAINT_COLOR_8 0x80
 
 /* ============================================================================= */
 /* Define macro to taint a register using thread_ctx_ptr and GPR from libdft     */
