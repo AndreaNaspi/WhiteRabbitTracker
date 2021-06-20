@@ -30,8 +30,8 @@ TLS_KEY tls_key = INVALID_TLS_KEY;
 /* ================================================================== */
 
 // Define knobs
-KNOB<BOOL> knobApiTracing(KNOB_MODE_WRITEONCE, "pintool", "trace", "false", "Enable API tracing at instruction level after each tainted conditional branch (high load)");
-KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "true", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection (enabled by default)");
+KNOB<BOOL> knobApiTracing(KNOB_MODE_WRITEONCE, "pintool", "trace", "false", "Enable API tracing at instruction level after each tainted conditional branch (high load, disabled by default)");
+KNOB <BOOL> knobBypass(KNOB_MODE_WRITEONCE, "pintool", "bypass", "false", "Enable return value bypass for APIs and instructions to avoid sandbox/VM detection (disabled by default)");
 KNOB <BOOL> knobLeak(KNOB_MODE_WRITEONCE, "pintool", "leak", "false", "Enable bypass to avoid leaks of real EIP through FPU instructions (disabled by default)");
 KNOB<BOOL> knobSystemCodeAlert(KNOB_MODE_WRITEONCE, "pintool", "alertSystemCode", "true", "Enable taint alert for tainted system code (enabled by default)");
 

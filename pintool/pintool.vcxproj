@@ -323,6 +323,7 @@
     <ClCompile Include="src\state.cpp" />
     <ClCompile Include="src\syshooking.cpp" />
     <ClCompile Include="src\syshooks.cpp" />
+    <ClCompile Include="src\wmi.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -359,6 +360,7 @@
     <ClInclude Include="src\syshooks.h" />
     <ClInclude Include="src\taint.h" />
     <ClInclude Include="src\winheaders.h" />
+    <ClInclude Include="src\wmi.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

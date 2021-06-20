@@ -3,6 +3,7 @@
 #include "pin.H"
 #include "state.h"
 #include "LoggingInfo.h"
+#include "wmi.h"
 
 namespace W {
 	#define WIN32_LEAN_AND_MEAN
@@ -43,6 +44,7 @@ namespace Functions {
 /* API HOOKS (taint sources)                                             */
 /* ===================================================================== */
 VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp);
+VOID BlockInputExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp);
 VOID CheckRemoteDebuggerPresentEntry(ADDRINT* pbDebuggerPresent);
 VOID CheckRemoteDebuggerPresentExit(CONTEXT* ctx, ADDRINT eax, ADDRINT esp);
 VOID EnumProcessesEntry(ADDRINT* pointerToProcessesArray, ADDRINT* pointerToBytesProcessesArray);
@@ -69,6 +71,8 @@ VOID GetDeviceDriverBaseNameHookExit(CONTEXT* ctx, ADDRINT esp);
 VOID GetAdaptersInfoEntry(PIP_ADAPTER_INFO* adapInfo, W::PULONG* size);
 VOID GetAdaptersInfoExit(CONTEXT* ctx, ADDRINT ret, ADDRINT esp);
 VOID EnumDisplaySettingsEntry(W::LPCTSTR* devName, CONTEXT* ctx);
+VOID SetupDiGetDeviceRegistryPropertyHookEntry(W::PBYTE* buffer);
+VOID SetupDiGetDeviceRegistryPropertyHookExit(ADDRINT ret);
 VOID SetTimerEntry(W::UINT* time);
 VOID WaitForSingleObjectEntry(W::DWORD *time);
 VOID IcmpSendEchoEntry(ADDRINT* replyBuffer, ADDRINT* replySize, W::DWORD *time);
@@ -82,6 +86,8 @@ VOID FindWindowHookEntry(W::LPCTSTR* path1, W::LPCTSTR* path2);
 VOID FindWindowHookExit(CONTEXT* ctx, W::BOOL* ret, ADDRINT esp);
 VOID CloseHandleHookEntry(W::HANDLE* handle);
 VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
+VOID WMIQueryHookEntry(W::LPCWSTR* query, W::VARIANT** var);
+VOID WMIQueryHookExit();
 
 /* ===================================================================== */
 /* INSTRUCTION HOOKS (taint sinks)                                       */
@@ -116,6 +122,8 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 #define STR_GUI_2	                "WantSuppli"
 #define STR_GUI_2B	                "s"
 #define CHAR_EDS	                'd'
+#define CHAR_SDI                	's'
+
 
 
 /* ===================================================================== */
@@ -123,6 +131,7 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp);
 /* ===================================================================== */
 enum {
 	ISDEBUGGERPRESENT_INDEX,
+	BLOCKINPUT_INDEX,
 	CHECKREMOTEDEBUGGERPRESENT_INDEX,
 	ENUMPROCESSES_INDEX,
 	PROCESS32FIRSTNEXT_INDEX,
@@ -138,6 +147,7 @@ enum {
 	DEVICEBASE_INDEX,
 	GETADAPTER_INDEX,
 	ENUMDIS_INDEX,
+	SETUPDEV_INDEX,
 	GETTICKCOUNT_INDEX,
 	SETTIMER_INDEX,
 	WAITOBJ_INDEX,
@@ -146,5 +156,6 @@ enum {
 	LOADLIBW_INDEX,
 	GETUSERNAME_INDEX,
 	FINDWINDOW_INDEX,
-	CLOSEH_INDEX
+	CLOSEH_INDEX,
+	WMI_INDEX
 };

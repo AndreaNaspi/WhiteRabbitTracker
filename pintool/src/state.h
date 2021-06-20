@@ -55,6 +55,7 @@ namespace State {
 		ADDRINT  lpCursorPointerInformations;
 		ADDRINT* lpMemoryInformations;
 		ADDRINT* lpSystemInformations;
+		W::PBYTE lpDeviceRegistryBuffer;
 		struct moduleFileNameInformations {
 			W::LPSTR lpModuleName;
 			W::DWORD lpNSize;
@@ -90,6 +91,10 @@ namespace State {
 			W::LPSTR usernameBuffer;
 			W::LPDWORD lpNSize;
 		} _usernameInformations;
+		struct wmiInformations {
+			W::VARIANT* var;
+			W::LPCWSTR queryWMI;
+		} _wmiInformations;
 		ADDRINT closeHandleStatus;
 		W::PWSTR ntCreateFileBuffer;
 		W::PWSTR ntQueryAttributesFileBuffer;

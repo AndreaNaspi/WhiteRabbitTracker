@@ -39,6 +39,7 @@ namespace Functions {
 		logInfo = logInfoParameter;
 		// Debugger API hooks
 		fMap.insert(std::pair<std::string, int>("IsDebuggerPresent", ISDEBUGGERPRESENT_INDEX));
+		fMap.insert(std::pair<std::string, int>("BlockInput", BLOCKINPUT_INDEX));
 		fMap.insert(std::pair<std::string, int>("CheckRemoteDebuggerPresent", CHECKREMOTEDEBUGGERPRESENT_INDEX));
 		// Processes API hooks
 		fMap.insert(std::pair<std::string, int>("EnumProcesses", ENUMPROCESSES_INDEX));
@@ -64,6 +65,9 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("EnumDisplaySettings", ENUMDIS_INDEX));
 		fMap.insert(std::pair<std::string, int>("EnumDisplaySettingsA", ENUMDIS_INDEX));
 		fMap.insert(std::pair<std::string, int>("EnumDisplaySettingsW", ENUMDIS_INDEX));
+		fMap.insert(std::pair<std::string, int>("SetupDiGetDeviceRegistryProperty", SETUPDEV_INDEX));
+		fMap.insert(std::pair<std::string, int>("SetupDiGetDeviceRegistryPropertyW", SETUPDEV_INDEX));
+		fMap.insert(std::pair<std::string, int>("SetupDiGetDeviceRegistryPropertyA", SETUPDEV_INDEX));
 		// Time API hooks
 		fMap.insert(std::pair<std::string, int>("GetTickCount", GETTICKCOUNT_INDEX));
 		fMap.insert(std::pair<std::string, int>("SetTimer", SETTIMER_INDEX));
@@ -80,7 +84,7 @@ namespace Functions {
 		fMap.insert(std::pair<std::string, int>("FindWindowW", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("FindWindowA", FINDWINDOW_INDEX));
 		fMap.insert(std::pair<std::string, int>("NtClose", CLOSEH_INDEX)); 
-
+		fMap.insert(std::pair<std::string, int>("?Get@CWbemObject@@UAGJPBGJPAUtagVARIANT@@PAJ2@Z", WMI_INDEX));
 	}
 
 
@@ -103,6 +107,14 @@ namespace Functions {
 					case(ISDEBUGGERPRESENT_INDEX):
 						// Add hooking with IPOINT_AFTER to taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)IsDebuggerPresentExit,
+							IARG_CONTEXT,
+							IARG_FUNCRET_EXITPOINT_REFERENCE,
+							IARG_REG_VALUE, REG_STACK_PTR,
+							IARG_END);
+						break;
+					case(BLOCKINPUT_INDEX):
+						// Add hooking with IPOINT_AFTER to taint the EAX register on output
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)BlockInputExit,
 							IARG_CONTEXT,
 							IARG_FUNCRET_EXITPOINT_REFERENCE,
 							IARG_REG_VALUE, REG_STACK_PTR,
@@ -260,6 +272,14 @@ namespace Functions {
 							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
 							IARG_CONTEXT, IARG_END);
 						break;
+					case(SETUPDEV_INDEX):
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)SetupDiGetDeviceRegistryPropertyHookEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 4,
+							IARG_END);
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)SetupDiGetDeviceRegistryPropertyHookExit,
+							IARG_FUNCRET_EXITPOINT_VALUE,
+							IARG_END);
+						break;
 					case(GETTICKCOUNT_INDEX):
 						// Add hooking with IPOINT_AFTER to taint the EAX register on output
 						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)GetTickCountExit,
@@ -347,6 +367,14 @@ namespace Functions {
 							IARG_REG_VALUE, REG_STACK_PTR,
 							IARG_END);
 						break;
+					case(WMI_INDEX):
+						RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)WMIQueryHookEntry,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+							IARG_FUNCARG_ENTRYPOINT_REFERENCE, 3,
+							IARG_END);
+						RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)WMIQueryHookExit,
+							IARG_END);
+						break;
 					default:
 						break;
 				}
@@ -372,6 +400,19 @@ VOID IsDebuggerPresentExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp) {
 	}
 	// Taint source: API return value
 #if TAINT_ISDEBUGGERPRESENT
+	taintRegisterEax(ctx);
+#endif
+}
+
+VOID BlockInputExit(CONTEXT* ctx, ADDRINT* ret, ADDRINT esp) {
+	CHECK_ESP_RETURN_ADDRESS(esp);
+	if (_knobBypass) {
+		// Bypass API return value
+		*ret = 0;
+		logInfo->logBypass("BlockInput");
+	}
+	// Taint source: API return value
+#if TAINT_BLOCKINPUT
 	taintRegisterEax(ctx);
 #endif
 }
@@ -792,6 +833,55 @@ VOID EnumDisplaySettingsEntry(W::LPCTSTR* devName, CONTEXT* ctx) {
 #endif
 }
 
+VOID SetupDiGetDeviceRegistryPropertyHookEntry(W::PBYTE* buffer) {
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	apiOutputs->lpDeviceRegistryBuffer = *buffer;
+}
+
+VOID SetupDiGetDeviceRegistryPropertyHookExit(ADDRINT ret) {
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+
+	if ((W::BOOL)ret != TRUE) 
+		return;
+
+	if (apiOutputs->lpDeviceRegistryBuffer == NULL || *apiOutputs->lpDeviceRegistryBuffer == NULL)
+		return; 
+
+	char value[PATH_BUFSIZE];
+	char logName[256] = "SDGDRP ";
+	GET_WSTR_TO_UPPER(apiOutputs->lpDeviceRegistryBuffer, value, PATH_BUFSIZE);
+
+	if (_knobBypass) {
+		if (strstr(value, "VBOX") != NULL || strstr(value, "VMWARE") != NULL) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			char* tmp = (char*)apiOutputs->lpDeviceRegistryBuffer;
+			size_t len = strlen(value);
+			memset(tmp, 0, 2 * (len + 1)); // +1 unnecessary?
+			for (size_t i = 0; i < len; i++) {
+				tmp[2 * i] = CHAR_SDI;
+			}
+		}
+
+		memset(value, 0, sizeof(value));
+		GET_STR_TO_UPPER(apiOutputs->lpDeviceRegistryBuffer, value, PATH_BUFSIZE);
+		if (strstr(value, "VBOX") != NULL || strstr(value, "VMWARE") != NULL) {
+			strcat(logName, value);
+			logModule->logBypass(logName);
+			char* tmp = (char*)apiOutputs->lpDeviceRegistryBuffer;
+			size_t len = strlen(value);
+			memset(tmp, 0, len); // last byte is already 0
+			for (size_t i = 0; i < len; i++) {
+				tmp[i] = CHAR_SDI;
+			}
+		}
+	}
+#if TAINT_SETUPDEVICEREGISTRY
+	logHookId(ctx, "SetupDiGetDeviceRegistryProperty", (char*)apiOutputs->lpDeviceRegistryBuffer, strlen(value));
+	addTaintMemory(ctx, (char*)apiOutputs->lpDeviceRegistryBuffer, strlen(value), TAINT_COLOR_1, true, "SetupDiGetDeviceRegistryProperty");
+#endif
+}
+
 VOID GetTickCountExit(CONTEXT* ctx, W::DWORD* ret, ADDRINT esp) {
 	CHECK_ESP_RETURN_ADDRESS(esp);
 	// Bypass API return value
@@ -1055,5 +1145,20 @@ VOID CloseHandleHookExit(W::BOOL* ret, ADDRINT esp) {
 		}
 	}
 }
+
+VOID WMIQueryHookEntry(W::LPCWSTR* query, W::VARIANT** var) {
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::wmiInformations* pc = &apiOutputs->_wmiInformations;
+	pc->var = *var;
+	pc->queryWMI = *query;
+
+}
+
+VOID WMIQueryHookExit() {
+	State::apiOutputs* apiOutputs = State::getApiOutputs();
+	State::apiOutputs::wmiInformations* pc = &apiOutputs->_wmiInformations;
+	WMI_Patch(pc->queryWMI, pc->var, logInfo);
+}
+
 
 /* END OF API HOOKS */
