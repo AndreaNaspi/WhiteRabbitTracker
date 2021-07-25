@@ -61,10 +61,12 @@ Option | Meaning
 `-trace` | Enable API tracing at instruction level after each tainted conditional branch
 `-bypass` | Enable return value bypass for APIs and instructions to avoid sandbox/VM detection 
 `-leak` | Enable bypass to avoid leaks of real EIP through FPU instructions
-`-alertSystemCode` | Enable taint alert for tainted system code considering only the first tainted system instruction for each subroutine 
+`-alertSystemCode` | Enable taint alert for tainted system code considering only the first tainted system instruction for each identified subroutine 
 
 To specify the desired number of traced API for the `-trace` functionality, the `API_AFTER_TAINTED_BR` variable under the `bufferLoggingInfo.h` header file must be modified.
+
 Furthermore, to enable or disable specific taint sources, the boolean variables under the `taint.h` header file must be modified. Instead, to customize the taint color of a specific taint source, the hooking procedure must be modified accessing the specific C++ files (i.e., `functions.cpp`, `syshooks.cpp` and `specialInstructions.cpp`).
+
 The taint sinks identification can be analyzed and customized under the `libdft\bridge.cpp` C++ file.
 
 For instance, to run an evasive program named `sample.exe` in a sandbox-like automatic mode try:
@@ -74,31 +76,32 @@ C:\Pin315\pin.exe -t WhiteRabbitTracker32.dll -bypass -leak -- sample.exe
 ```
 
 WhiteRabbitTracker will create a file named `profile.log` under Pin's folder `C:\Pin315` that logs all the identified context information (e.g., identified APIs after each tainted conditional branch, bypassed APIs/instructions and so on).
+
 Furthermore, WhiteRabbitTracker will create a file named `callstack.log` under Pin's folder `C:\Pin315` that logs all the identified subroutine during the program execution.
-In conclusion, WhiteRabbitTracker will produce three files for each for each generated thread during the program execution undet the `C:\Pin315\taint` folder:
-* `tainted-<thread_identifier>.log` contains all the information related to the tainted instructions. In particular, thefollowing information are stored in this file:
-  * The type of tainted instruction identified byWhiteRabbitTracker(e.g., the label "mem-imm" stands for an instruction with two operands,respectively a memory address and an immediate value);
+
+In conclusion, WhiteRabbitTracker will produce three files for each generated thread during the program execution under the `C:\Pin315\taint` folder:
+* `tainted-<thread_identifier>.log` contains all the information related to the tainted instructions. In particular, the following information are stored in this file:
+  * The type of tainted instruction identified by WhiteRabbitTracker(e.g., the label "mem-imm" stands for an instruction with two operands, respectively a memory address and an immediate value);
   * The address of the tainted instruction;
   * The taint color associated with the tainted instruction;
   * The operands involved in the tainted instruction;
   * The hash that uniquely identifies the subroutine associated to the tainted instruction;
-  * In case the instruction is a tainted system instruction, this fileincludes also the tainted Windows API.
-* `tainted-<thread_identifier>-ins.log` contains, for each tainted in-struction, the disassembled version of that instruction using the Zydis decompiler;
+  * In case the instruction is a tainted system instruction, this file includes also the tainted Windows API.
+* `tainted-<thread_identifier>-ins.log` contains, for each tainted instruction, the disassembled version of that instruction using the Zydis decompiler;
 * `tainted-<thread_identifier>-mem.log` keeps information about memory addresses tainted in a taint source (i.e., function/system call hooks or instruction hooks).
 
 ### Offline analysis
 
-WhiteRabbitTracker provides a Python script under the `offlineAnalysis` folder to combine all the collected information through an abstraction (e.g., `producer-consumer graph`) which allows the analyst to quickly identify which entities are involded in these tracked data flows (e.g., subroutines that implements theevasive attempts). In particular, the `producer-consumer graph` is composed by three building blocks:
+WhiteRabbitTracker provides a Python script under the `offlineAnalysis` folder to combine all the collected information through an abstraction (i.e., `producer-consumer graph`) which allows the analyst to quickly identify which entities are involded in these tracked data flows (e.g., subroutines that implements the evasive attempts). In particular, the `producer-consumer graph` is composed by three building blocks:
 * `Producers`: The producer can be seen as the responsible for having caused data to become tainted. Always referring to the taint analysis jargon, in some instances a producer is exactly the taint source of the tainted flow;
 * `Chunks`: A chunk is the memory object “created” by a producer and later manipulated by a consumer;
-* `Consumers`: ltimately, a consumer is any malware instruction which involved tainted data in its input operands (i.e., taint sinks).
+* `Consumers`: Ultimately, a consumer is any malware instruction which involved tainted data in its input operands (i.e., taint sinks).
 
-In some instances, a producer can be identified through data movement operations and therefore would not match any taint source. In fact, WhiteRabbitTracker identifies producers of chunks created by movement operations, through the combination of the taint color and the hash that uniquely indetify the tainted subroutine (e.g., context identifier).
+In some instances, a producer can be identified through data movement operations and therefore would not match any taint source. In fact, WhiteRabbitTracker identifies producers of chunks created by movement operations, through the combination of the taint color and the hash that uniquely indetify the tainted subroutine (i.e., context identifier).
 
 As an example, an analysis of a full run on the Furtim malware with the options `-bypass` and `-leak` will yield the following producer-consumer graph:
 
 ![Furtim full run](docs/furtim_complete_analysis.jpg)
-
 
 ### Authors
 * Andrea Naspi ([@andreanaspi](https://github.com/AndreaNaspi)) - main developer
