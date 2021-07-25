@@ -2,7 +2,7 @@
 
 **Last update: (July 25, 2021)** 
 
-**WhiteRabbitTracker** is an open-source dynamic analysis framework which leverages dynamic binary instrumentation capabilities from Intel Pin and the dynamic taint analysis libdft library to build a profile of the evasive strategy employed by the executable under analysis, monitoring the interaction between the latter and the data it manipulates.
+**WhiteRabbitTracker** is an open-source dynamic analysis framework which leverages dynamic binary instrumentation capabilities from [Intel Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool) and the dynamic taint analysis [libdft](https://www.cs.columbia.edu/~vpk/research/libdft/) library to build a profile of the evasive strategy employed by the executable under analysis, monitoring the interaction between the sample and the data it manipulates.
 
 In particular, this framework taints the output data of APIs, system calls and suspected instructions that are routinely involved in evasive attempts, identifying tainted instructions and providing calling context information to help understanding where in the executable tainted data originates. In addition, this framework monitors these evasive attempts that a sample can make on the environment looking for artifacts, and fixes them when their results would give away the presence of an automated analysis or a human agent.
 
@@ -13,7 +13,7 @@ We tested WhiteRabbitTracker on heterogeneous PE32 malware running on 32-bit Win
 
 ### Requirements
 
-WhiteRabbitTracker builds on [Intel Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool) (v3.15 is highly recommended) and requires Visual Studio 2015 or higher for its compilation.
+WhiteRabbitTracker builds on Intel Pin (v3.15 is highly recommended) and requires Visual Studio 2015 or higher for its compilation.
 
 Pin has some dependencies that require manual inclusion in the project. We created a `Locals.props` file that simplifies the project configuration. Its defaults are Pin being installed in `C:\Pin315` and the SDK 8.1 headers being in use: 
 
