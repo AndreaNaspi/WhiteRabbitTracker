@@ -14,7 +14,7 @@
 	#define PAGE_SIZE 0x1000
 #endif
 // Tool name and relative version
-#define TOOL_NAME "simpleProfilerAPI"
+#define TOOL_NAME "WhiteRabbitTracker"
 #define VERSION "2.0"
 // Object that contains useful functions to access the process
 ProcessInfo pInfo;
