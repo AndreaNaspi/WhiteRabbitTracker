@@ -1,6 +1,6 @@
 # WhiteRabbitTracker
 
-**Last update: (Jul 25, 2021)** 
+**Last update: (July 25, 2021)** 
 
 **WhiteRabbitTracker** is an open-source dynamic analysis framework which leverages dynamic binary instrumentation capabilities from Intel Pin and the dynamic taint analysis libdft library to build a profile of the evasive strategy employed by the executable under analysis, monitoring the interaction between the latter and the data it manipulates.
 
