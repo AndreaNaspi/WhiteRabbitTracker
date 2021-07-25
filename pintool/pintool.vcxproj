@@ -22,7 +22,7 @@
     <ProjectGuid>{639EF517-FCFC-408E-9500-71F0DC0458DB}</ProjectGuid>
     <RootNamespace>pintool</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <ProjectName>simpleProfilerAPI</ProjectName>
+    <ProjectName>WhiteRabbitTracker</ProjectName>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
