@@ -97,6 +97,8 @@ In some instances, a producer can be identified through data movement operations
 
 As an example, an analysis of a full run on the Furtim malware with the options `-bypass` and `-leak` will yield the following producer-consumer graph:
 
+![Furtim full run](docs/furtim_complete_analysis.jpg)
+
 
 ### Authors
 * Andrea Naspi ([@andreanaspi](https://github.com/AndreaNaspi)) - main developer
