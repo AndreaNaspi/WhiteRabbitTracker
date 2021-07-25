@@ -362,6 +362,9 @@
     <ClInclude Include="src\winheaders.h" />
     <ClInclude Include="src\wmi.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\docs\furtim_complete_analysis.jpg" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

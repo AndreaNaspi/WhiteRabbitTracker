@@ -76,6 +76,9 @@
     <Filter Include="libdft">
       <UniqueIdentifier>{25a80272-668f-4457-afcf-1f3963deb8dd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="docs">
+      <UniqueIdentifier>{32109f85-32cc-4682-9879-90a38880bc4d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\libdft\array.hpp">
@@ -160,5 +163,10 @@
     <ClInclude Include="src\wmi.h">
       <Filter>Header files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\docs\furtim_complete_analysis.jpg">
+      <Filter>docs</Filter>
+    </Image>
   </ItemGroup>
 </Project>
